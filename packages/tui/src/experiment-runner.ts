@@ -47,12 +47,15 @@ export class ExperimentRunner {
     let acc: number | undefined;
     let t = 0;
 
-    const flush = async () => {
-      const point = { trial, total, cost, acc, t: ++t };
-      await appendFile(join(smokes, "telemetry.jsonl"), JSON.stringify(point) + "\n", "utf8");
+    let writeChain = Promise.resolve();
+
+    const flush = (point: object) => {
+      writeChain = writeChain.then(() =>
+        appendFile(join(smokes, "telemetry.jsonl"), JSON.stringify(point) + "\n", "utf8")
+      );
     };
 
-    proc.stdout?.on("data", async (chunk: Buffer) => {
+    proc.stdout?.on("data", (chunk: Buffer) => {
       buf += chunk.toString();
       const lines = buf.split("\n");
       buf = lines.pop() ?? "";
@@ -62,12 +65,13 @@ export class ExperimentRunner {
         const ma = line.match(/^ACC ([\d.]+)/);
         if (mt) { trial = +mt[1]; total = +mt[2]; }
         else if (mc) { cost = +mc[1]; }
-        else if (ma) { acc = +ma[1]; await flush(); }
+        else if (ma) { acc = +ma[1]; flush({ trial, total, cost, acc, t: ++t }); }
       }
     });
 
     const done = new Promise<void>((resolve) => {
       proc.on("close", async (code) => {
+        await writeChain; // drain any pending appends
         const live = this.runs.get(id);
         const status = live?.killed ? "killed" : code === 0 ? "done" : "failed";
         await writeFile(

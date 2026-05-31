@@ -51,6 +51,8 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   const [barVisible, setBarVisible] = useState(false);
+  const barVisibleRef = React.useRef(false);
+  const setBar = (v: boolean) => { barVisibleRef.current = v; setBarVisible(v); };
   const [draft, setDraft] = useState("");
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,13 +73,13 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
 
       // When the command bar is open, only handle escape to close it.
       // CommandBar's own useInput handles all typing.
-      if (barVisible) {
-        if (key.escape) { setBarVisible(false); setAnswer(""); setDraft(""); }
+      if (barVisibleRef.current) {
+        if (key.escape) { setBar(false); setAnswer(""); setDraft(""); }
         return;
       }
 
-      // Read barVisible from the closure — use a ref-style trick via setState
-      // callback to get the current value without re-registering the listener.
+      // Read barVisible from the ref — always reflects current value without
+      // needing to re-register the listener.
       setBarVisible((visible) => {
         if (!visible) {
           if (input === "q") { exit(); }
@@ -89,7 +91,7 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
           else if (key.downArrow) setSelectedIdx((i) => Math.min(nodes.length - 1, i + 1));
           else if (input === "s" && selected) void runner.spawn(selected.id, selected.computeTarget);
           else if (input === "k" && selected && !key.ctrl) runner.kill(selected.id);
-          else if (key.ctrl && input === "k") { return true; } // open bar
+          else if (key.ctrl && input === "k") { barVisibleRef.current = true; return true; } // open bar
         }
         return visible;
       });

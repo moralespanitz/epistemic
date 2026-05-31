@@ -53,3 +53,30 @@ test("kill marks run-status killed", async () => {
   );
   expect(rs.status).toBe("killed");
 });
+
+test("runner never writes outside experiments/{id}/smokes/", async () => {
+  const cwd = await makeRepo();
+  // Create HYPOTHESES.md and a cost-ledger file to verify they're untouched
+  const { writeFile: wf } = await import("node:fs/promises");
+  const { join: j } = await import("node:path");
+  await wf(j(cwd, "HYPOTHESES.md"), "# Hypotheses\n", "utf8");
+  const ledgerPath = j(cwd, ".epistemic", "cost-ledger.jsonl");
+
+  const runner = new ExperimentRunner(cwd);
+  await runner.spawnWith("H-005", FAKE_JOB);
+  await runner.waitFor("H-005");
+
+  // Headline files must NOT have been touched
+  const { stat } = await import("node:fs/promises");
+  const hmStat = await stat(j(cwd, "HYPOTHESES.md"));
+  expect(hmStat.size).toBe("# Hypotheses\n".length); // unchanged
+
+  // cost-ledger must NOT exist (runner didn't create it)
+  const ledgerExists = await stat(ledgerPath).then(() => true).catch(() => false);
+  expect(ledgerExists).toBe(false);
+
+  // But smokes/ MUST exist with telemetry
+  const smokesPath = j(cwd, "experiments", "H-005", "smokes");
+  const smokesStat = await stat(smokesPath);
+  expect(smokesStat.isDirectory()).toBe(true);
+});
