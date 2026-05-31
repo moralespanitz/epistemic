@@ -15,17 +15,18 @@ export function buildEpistemicWidget(
   gates: string[]
 ): string[] {
   if (!active) {
-    return ["Ξ epistemic  ·  no active hypothesis  ·  describe your research idea to begin"];
+    return [`Ξ epistemic  ·  no active hypothesis  ·  ${gates.length} gates armed  ·  describe your research idea to begin`];
   }
 
   const icon = STATUS_ICON[active.status] ?? "?";
   const pct  = active.costCap > 0 ? Math.min(Math.round((spent / active.costCap) * 100), 100) : 0;
-  const bar  = costBar(pct, 8);
-  const gateStr = gates.length ? gates.map(g => `${g} ✓`).join("  ") : "none";
-  const preview = active.claim.length > 90 ? active.claim.slice(0, 90) + "…" : active.claim;
+  const bar  = costBar(pct, 10);
+  const killPct = active.costCap > 0 ? (spent / (active.costCap * 1.5)) * 100 : 0;
+  const killWarn = killPct >= 80 ? `  ⚠ kill@${Math.round(killPct)}%` : "";
+  const preview = active.claim.length > 80 ? active.claim.slice(0, 80) + "…" : active.claim;
 
   return [
-    `Ξ  ${icon} ${active.id} [${active.status}]  ·  $${spent.toFixed(2)} / $${active.costCap}  ${bar}  ·  ${gateStr}  ·  ${active.computeTarget}`,
+    `Ξ  ${icon} ${active.id} [${active.status}]  ·  $${spent.toFixed(2)} / $${active.costCap}  ${bar}${killWarn}  ·  ${gates.length} gates ✓  ·  ${active.computeTarget}`,
     `   "${preview}"`,
   ];
 }

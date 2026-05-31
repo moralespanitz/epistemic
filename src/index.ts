@@ -1,18 +1,23 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { registerPreregGate } from "./gates/prereg.js";
+import { registerJudgeLockGate } from "./gates/judge-lock.js";
+import { registerSmokeGate } from "./gates/smoke.js";
+import { registerCostLedger } from "./gates/cost-ledger.js";
+import { registerClaimInterceptor } from "./gates/claim-interceptor.js";
+import { registerKillCriteriaGate } from "./gates/kill-criteria.js";
+import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
-import { loadRepoState, loadHypotheses, getActiveHypothesis } from "./state/repo.js";
+import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "./state/repo.js";
 import { refreshEpistemicWidget } from "./tui/widget.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
 
-// Gates currently registered — extended as more gates are added.
-const ACTIVE_GATES = ["prereg"];
+const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
 export default async function (pi: ExtensionAPI) {
-  // ─── Session start: detect epistemic repo, activate gates ───
+  // ─── Session start ───────────────────────────────────────────
   pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
     sessionCtx = ctx;
     try {
@@ -21,7 +26,7 @@ export default async function (pi: ExtensionAPI) {
         const hasState = state.hypotheses || state.baselines || state.results;
         ctx.ui.notify(
           hasState
-            ? "Ξ epistemic active. Gates are enforcing methodology."
+            ? "Ξ epistemic active. All methodology gates enforcing."
             : "Ξ epistemic loaded. Describe your research idea — the agent will guide you.",
           "info"
         );
@@ -31,31 +36,24 @@ export default async function (pi: ExtensionAPI) {
     } catch {}
   });
 
-  // ─── Session shutdown: cleanup ───
-  pi.on("session_shutdown", async () => {
-    // Cleanup handled by individual subscribers
-  });
+  pi.on("session_shutdown", async () => {});
 
   // ─── State injection into system prompt ─────────────────────
   setupBeforeAgentStart(pi);
 
-  // ─── Gates (methodology enforcement) ──────────────────────────
-  registerPreregGate(pi as any); // Block unprereg'd experiments
-  registerHuggingFaceTools(pi);   // HF dataset metadata tools
+  // ─── Gates ────────────────────────────────────────────────────
+  registerPreregGate(pi as any);
+  registerJudgeLockGate(pi as any);
+  registerSmokeGate(pi as any);
+  registerCostLedger(pi as any);
+  registerClaimInterceptor(pi as any);
+  registerKillCriteriaGate(pi as any);
+  registerBaselineStalenessGate(pi as any);
 
-  // Planned gates (not yet implemented):
-  // registerJudgeLockGate(pi as any);   // Lock judge config
-  // registerSmokeGate(pi as any);       // Block provisional numbers in headlines
-  // registerCostLedger(pi as any);      // Track every tool call cost
-  // registerClaimInterceptor(pi as any);// Detect claims, warn about reproductions
-  // registerKillCriteria(pi as any);    // Enforce kill criteria
-  // registerBaselineStalenessGate(pi as any); // Block stale baselines
+  // ─── Tools ────────────────────────────────────────────────────
+  registerHuggingFaceTools(pi);
 }
 
-/**
- * Inject live epistemic state into the system prompt on every turn.
- * The agent reads this to know which hypothesis is active and what gates are in play.
- */
 function setupBeforeAgentStart(pi: any) {
   pi.on("before_agent_start", async (event: any, _ctx: any) => {
     try {
@@ -67,24 +65,27 @@ function setupBeforeAgentStart(pi: any) {
       }
       if (!active) return;
 
+      const spent = await getHypothesisSpend(event.cwd, active.id);
+      const pct = active.costCap > 0 ? Math.round((spent / active.costCap) * 100) : 0;
+
       const summary = [
         `## Epistemic runtime state`,
         `- Active hypothesis: ${active.id}`,
         `- Claim: ${active.claim.slice(0, 100)}`,
         `- Status: ${active.status}`,
         `- Judge: ${active.judgeRef.slice(0, 40)}`,
-        `- Cost cap: $${active.costCap}`,
         `- Falsifier: ${active.falsifier.slice(0, 80)}`,
+        `- Cost: $${spent.toFixed(2)} / $${active.costCap} (${pct}%)`,
+        `- Compute: ${active.computeTarget}`,
         ``,
-        `Methodology gates active: prereg ✓`,
+        `Methodology gates active: ${ACTIVE_GATES.join(" ✓  ")} ✓`,
         `Provisional results go in smokes/ only. Headline files require confirmed experiments.`,
-        `Overrides are recorded in OVERRIDES.md with a mandatory reason.`,
+        `Overrides go in OVERRIDES.md with a mandatory reason (≥50 chars).`,
+        `Kill criteria: spend >$${(active.costCap * 1.5).toFixed(2)} or >21 days → run kill-or-ship skill.`,
         ``,
       ].join("\n");
 
-      return {
-        systemPrompt: event.systemPrompt + "\n\n" + summary,
-      };
+      return { systemPrompt: event.systemPrompt + "\n\n" + summary };
     } catch {
       return;
     }
