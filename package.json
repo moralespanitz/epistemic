@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Research-methodology skills for coding agents — hypothesis registration, preregistration, baseline reproduction, experiment execution, falsification review, surprise triage, and kill-or-ship decisions. Gates enforce the rules automatically.",
-  "keywords": ["pi-package", "epistemic", "research", "methodology", "reproducibility"],
+  "description": "Research-methodology skills for coding agents — hypothesis registration, preregistration with Docker/Modal scaffold, baseline reproduction with AlphaXiv + HuggingFace, experiment execution with compute-target routing, statistical rigor, falsification review, surprise triage, kill-or-ship with PIVOT/REFINE, and verification with cross-run lessons. Gates enforce the rules automatically.",
+  "keywords": ["pi-package", "epistemic", "research", "methodology", "reproducibility", "huggingface", "docker", "modal"],
   "license": "MIT",
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -14,7 +14,7 @@
     "typebox": "*"
   },
   "pi": {
-    "extensions": ["./src/index.ts"],
+    "extensions": ["./src/index.ts", "./src/extensions/huggingface.ts"],
     "skills": ["./skills"]
   }
 }

@@ -1,63 +1,71 @@
 ---
 name: kill-or-ship
-description: Use when an experiment has reached a real decision point and you must explicitly choose KILL, RECOMMIT, or SHIP from repository evidence.
+description: Use when a hypothesis has reached a real decision point and you must choose KILL, PIVOT, RECOMMIT, REFINE, or SHIP from repository evidence.
 ---
 
-> **Related skills:** `/skill:experiment-execution`, `/skill:falsification-review`, `/skill:surprise-triage`, `/skill:verification-before-publication`
+> **Related skills:** `/skill:research-question`, `/skill:experiment-execution`, `/skill:falsification-review`, `/skill:surprise-triage`, `/skill:verification-before-publication`
 
 # Kill or Ship
+
 ## Overview
-This is the decision point.
-Not the reflection point.
-Not the feelings point.
-Not the "one more run" point.
+This is the decision phase.
+Not the coping phase.
+Not the `one more run` phase.
+Not the place where sunk cost gets a vote.
 
 You must choose exactly one branch:
-- `KILL`
-- `RECOMMIT`
-- `SHIP`
+- `KILL` — the current claim dies.
+- `PIVOT` — the current claim dies, but the failure teaches a different claim worth registering as a new hypothesis.
+- `RECOMMIT` — same claim, same method, bounded extra budget or time under a written override.
+- `REFINE` — same claim, changed method, written override, explicit refinement count, then rerun from execution.
+- `SHIP` — the claim survived the gates and is ready for publication verification.
 
-Anything softer is usually avoidance.
-A healthy research pipeline kills aggressively, recommits rarely, and ships only what survives contact with the gates.
-A sloppy pipeline keeps weak work alive because nobody wants to write the obituary.
-Do not run the sloppy pipeline.
-**Core principle:** kill most things early, recommit only with an explicit new contract, and ship only confirmed work.
-Your source of truth is the repository.
-Read `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `BASELINES.md`, and the artifacts under `experiments/{id}/`.
-Use the real helpers in `src/state/repo.ts`.
-Use the real adversary entry point in `src/adversary/dispatch.ts`.
-If the files do not support the story, the story loses.
-The extension already enforces part of this automatically.
-`src/index.ts` imports and registers `registerKillCriteria(pi as any)` from `./gates/kill-criteria.js`.
-Treat that gate as enforcement, not advice.
-A clean kill is success.
-A recommit is a new contract.
-A ship is earned only when the gates are clean and the results are confirmed.
+Two distinctions are non-negotiable:
+1. `PIVOT` is still a kill of the old hypothesis.
+2. `REFINE` is not `RECOMMIT`. `RECOMMIT` keeps the method. `REFINE` changes it.
+
+`COST_OVERRUN` is not a sixth branch.
+It is the `LessonEntry.outcome` you write when budget pressure forced the decision.
+
+Current repo reality matters:
+- `src/state/repo.ts` is the canonical state surface.
+- `src/adversary/dispatch.ts` is the adversary entrypoint.
+- `src/index.ts` still shows `registerKillCriteria(...)` as planned, not active.
+
+So no live gate is going to save you from a sentimental decision.
+This skill is the gate.
+
+## Quick Reference
+| Branch | Same claim? | Same method? | Required writes | Lesson outcome |
+| --- | --- | --- | --- | --- |
+| `KILL` | No future work on this claim | n/a | `HYPOTHESES.md` -> `KILLED`, `killReason`, `experiments/{id}/KILLED.md` | `"KILLED"` or `"COST_OVERRUN"` |
+| `PIVOT` | No | No | old entry `KILLED`, kill reason points to new id, `experiments/{id}/KILLED.md`, new hypothesis entry | `"PIVOT"` |
+| `RECOMMIT` | Yes | Yes | `OVERRIDES.md`, possible cap or window change, status stays `RUNNING` | `"COST_OVERRUN"` only if budget forced it |
+| `REFINE` | Yes | No | `OVERRIDES.md`, increment `Refinement count`, rerun | none |
+| `SHIP` | Yes | Yes | confirmed result on disk, status `CONFIRMED` | none |
 
 ## The Iron Law
 ```text
-5:1 kill-to-ship ratio is normal; sunk cost is a fallacy
+5:1 kill-to-ship is normal.
+Pivots count as kills of the old claim.
+Cost already spent still does not vote.
 ```
 Most ideas should die.
-That is not cynicism.
-That is how you keep budget, time, and credibility from bleeding out on bad bets.
-
-Money already spent does not vote.
-Time already spent does not vote.
-Embarrassment does not vote.
-Only current evidence, explicit caps, and clean gates vote.
+Some should pivot.
+A few should survive long enough to ship.
+Anything softer becomes zombie research.
 
 ## When to Use
 Use this skill when:
-- a hypothesis has enough evidence for a terminal decision
-- spend is near or above the cost cap in `HYPOTHESES.md`
-- a run has gone stale and needs a real answer
-- you want to quote a result outside `smokes/`
 - falsification review is complete and the next move must be explicit
-- surprise triage is complete and the result is stable enough to judge
-- you are considering an override to keep a run alive
-- you are about to change status in `HYPOTHESES.md`
-- you are tempted to quietly abandon a weak run without writing down why
+- surprise triage is complete and the anomaly is now explained, downgraded, or fatal
+- an adversary verdict came back `falsified-or-unreproducible`
+- spend is near or above the hypothesis `costCap`
+- the result is clean enough that `SHIP` might be available
+- the same claim may need either a bounded recommit or a methodological refinement
+- a failed claim appears to suggest a better new claim
+- you are about to change hypothesis status, write `KILLED.md`, or write an override
+- you are tempted to quietly stop talking about a weak run instead of deciding it
 
 Use it especially when the decision feels awkward.
 That usually means emotion is trying to outvote evidence.
@@ -65,335 +73,425 @@ That usually means emotion is trying to outvote evidence.
 ## When NOT to Use
 Do not use this skill:
 - before `experiments/{id}/prereg.md` exists
-- before the run has produced any real evidence
+- before the run produced any real evidence
 - instead of `/skill:falsification-review`
-- instead of `/skill:surprise-triage` for divergent results
-- to silently revive something already marked `KILLED`
-- to publish smoke results before confirmation
-- to excuse sloppy execution after the fact
+- instead of `/skill:surprise-triage`
+- to publish anything that still lives only in `smokes/`
+- to silently revive a `KILLED` record
+- to launder a changed claim under the old hypothesis id
+- to excuse missing `judge.lock`, stale baselines, or missing falsifier files
+- to backfill method changes after you already shipped the result
 
-If you are still setting up the run, go back earlier in the pipeline.
-If you are ready to publish, make the decision here first, then move to the publication gate.
+If the idea itself is changing before the evidence exists, use `/skill:research-question` or `/skill:preregistration` instead.
+
+## Decision Tree
+```text
+Did the claim actually fail?
+├─ yes
+│  ├─ Ask first: "What does this failure teach us that we didn't know before?"
+│  ├─ Concrete new claim, new contract, new id? -> PIVOT
+│  └─ No concrete new claim? -> KILL
+└─ no
+   ├─ Same claim, same method, bounded extra budget or time? -> RECOMMIT
+   ├─ Same claim, changed method? -> REFINE
+   └─ All gates clean, confirmed result on disk, no unresolved overrun? -> SHIP
+```
+
+`REFINE` is not a loophole after a real falsifier kill.
+If the claim died, kill it or pivot it.
+`REFINE` is for the same claim when the method changed and the claim itself is still live.
+
+## State Surface
+Read the actual repo state before deciding anything.
+
+| Surface | Why it matters |
+| --- | --- |
+| `HYPOTHESES.md` | canonical branch record, `killReason`, new hypothesis entry, refinement counter |
+| `.epistemic/cost-ledger.jsonl` | total spend and spend composition |
+| `.epistemic/lessons.jsonl` | cross-run memory via `appendLesson()` |
+| `OVERRIDES.md` | mandatory authorization for `RECOMMIT` and `REFINE` |
+| `experiments/{id}/prereg.md` | `SHIP` eligibility and method contract |
+| `experiments/{id}/judge.lock` | proof the judge did not drift |
+| `experiments/{id}/smokes/` | provisional evidence only |
+| `experiments/{id}/RESULTS.md` | confirmed result required for `SHIP` |
+| `experiments/{id}/KILLED.md` | terminal artifact for `KILL` and the old side of a `PIVOT` |
+| `experiments/{id}/falsifiers/` | why the claim survived or died |
+| `BASELINES.md` and `experiments/repro_{name}/prereg.md` | freshness and reproduction for comparison claims |
+| `src/state/repo.ts` | canonical helpers and types |
+| `src/adversary/dispatch.ts` | adversary verdict source |
+| `src/index.ts` | proves the kill gate is still planned, not enforced |
+
+State helpers you will actually use here:
+- `loadRepoState(cwd)`
+- `loadHypotheses(cwd)`, `getActiveHypothesis(entries)`, `parseHypotheses(content)`
+- `hypothesisToMarkdown(entry)`, `saveHypotheses(cwd, entries)`, `updateHypothesisStatus(cwd, id, status)`
+- `fileExists(path)`
+- `getHypothesisSpend(cwd, id)`, `getHypothesisSpendByCategory(cwd, id)`, `getAllHypothesisSpends(cwd)`
+- `loadBaselines(cwd)`, `getBaselineAgeDays(entry)`
+- `getJudgeLock(cwd, id)`, `computeJudgeHash(judgeRef, id)`
+- `appendLesson(cwd, lesson)`
+- `runFalsificationAdversary({ claim, context, cwd })` if the decision depends on missing or stale adversary output
+
+Current repo reality:
+- `HypothesisEntry` supports `killReason`.
+- `LessonEntry.outcome` supports `"KILLED"`, `"PIVOT"`, `"COST_OVERRUN"`, and `"UNREPRODUCIBLE_BASELINE"`.
+- `HypothesisEntry` does **not** currently carry a refinement counter.
+
+So `REFINE` needs a visible `- **Refinement count:** N` line in the hypothesis block.
+Preserve it deliberately.
+Do not assume `saveHypotheses(...)` will keep unknown fields.
 
 ## The Process
-### Phase 1: Load the actual decision state
-1. Start from the repository, not from memory.
-2. Call `loadRepoState(cwd)` from `src/state/repo.ts` to confirm the scaffold exists.
-3. Call `loadHypotheses(cwd)` and identify the active `HypothesisEntry`.
-4. If you expect one live record, use `getActiveHypothesis(entries)`.
-5. If multiple hypotheses are active, split them and decide each one separately.
-6. Read the live entry closely enough to answer five questions: what is the claim, what would falsify it, what was the cost cap, what judge reference is supposed to be locked, and what is the current status.
-7. If you only have raw markdown, use `parseHypotheses(...)`.
-8. If you rewrite the ledger, use `saveHypotheses(...)` and `hypothesisToMarkdown(...)`.
-9. Do not invent a second parser for `HYPOTHESES.md`.
-10. Locate `experiments/{id}/`.
-11. Check required artifacts with `fileExists(path)`: `prereg.md`, `judge.lock`, `RESULTS.md`, and `KILLED.md`.
-12. Inspect `experiments/{id}/baselines/`, `experiments/{id}/falsifiers/`, and `experiments/{id}/smokes/` too.
-13. Pull cumulative spend with `getHypothesisSpend(cwd, id)`.
-14. If you need portfolio context, pull all totals with `getAllHypothesisSpends(cwd)`.
-15. The source of truth is `.epistemic/cost-ledger.jsonl`, which stores `CostRecord` entries appended by `appendCostRecord(...)`.
-16. Do not estimate spend from memory.
-17. Compute elapsed time from the hypothesis timestamp to now.
-18. Compute inactivity from actual git history for the hypothesis or experiment directory.
-19. "No commit" means no repository progress.
-20. Hope does not count as progress.
-21. Private intention does not count as progress.
-22. Get the facts first.
 
-### Phase 2: Apply the hard triggers first
-1. Start with the thresholds that remove wiggle room.
-2. Compare cumulative spend against `costCap * 1.5`.
-3. If spend is greater than `1.5 × costCap`, you must choose `KILL` or `RECOMMIT`.
-4. That trigger is mandatory.
-5. Do not override it with optimism, sunk cost, or a pretty smoke run.
-6. Next check inactivity.
-7. If the run has been going for more than 7 days with no commit, warn.
-8. Treat that warning as a forced decision point, not as background noise.
-9. If the run has been going for more than 21 days with no commit, auto-kill it.
-10. A 21-day silent experiment is not active research.
-11. It is dead inventory.
-12. Dead inventory does not get more budget.
-13. The kill-criteria gate exists to enforce exactly this behavior.
-14. The extension code does the policing so you do not rationalize your way around it.
-15. Once these triggers narrow the branch set, accept the narrowing.
-16. Arithmetic is not negotiable.
-17. Delay is not evidence.
+### 1. Load the real decision state
+1. Start from repo state, not memory.
+2. Call `loadRepoState(cwd)` for the top-level scaffold.
+3. Call `loadHypotheses(cwd)` and identify the active hypothesis.
+4. If several hypotheses could match, resolve the exact `id` explicitly.
+5. Read the active `HypothesisEntry` closely enough to answer:
+   - what is the claim
+   - what falsifies it
+   - what is the best-case conclusion
+   - what is the cost cap
+   - what compute target is expected
+   - what judge is locked
+   - what baseline is being compared
+   - what the current status says
+6. Locate `experiments/{id}/`.
+7. Check `prereg.md`, `judge.lock`, `RESULTS.md`, and `KILLED.md` with `fileExists(...)`.
+8. Inspect `smokes/`, `falsifiers/`, and `baselines/`.
+9. Pull total spend with `getHypothesisSpend(cwd, id)`.
+10. Pull the spend split with `getHypothesisSpendByCategory(cwd, id)`.
+11. If shared budget matters, inspect `getAllHypothesisSpends(cwd)`.
+12. For comparison claims, load the relevant baseline metadata and freshness.
+13. Do not decide from memory.
+14. Do not decide from the last encouraging run.
+15. Do not decide from the loudest person in the room.
 
-### Phase 3: Decide whether `SHIP` is even available
-1. Before choosing a branch, decide whether `SHIP` is actually on the menu.
-2. Start with preregistration.
-3. If `experiments/{id}/prereg.md` is missing, `SHIP` is closed.
-4. If the decisive run drifted away from prereg without an explicit override, `SHIP` is closed.
-5. Next check judge integrity.
-6. Read the lock with `getJudgeLock(cwd, id)`.
-7. Recompute the expected hash with `computeJudgeHash(hypothesis.judgeRef, id)`.
-8. If the lock is missing or mismatched, `SHIP` is closed.
-9. Do not call `writeJudgeLock(...)` after the fact to make history look cleaner.
-10. Retroactive compliance is theater.
-11. Next check falsification.
-12. Review `experiments/{id}/falsifiers/`.
-13. If needed, run `runFalsificationAdversary({ claim, context, cwd })` from `src/adversary/dispatch.ts`.
-14. Read the returned `AdversaryVerdict[]`.
-15. Pay attention to `experiment`, `costEstimate`, `verdict`, and `reasoning`.
-16. If any verdict is `falsified-or-unreproducible`, `SHIP` is closed.
-17. If any verdict is `cannot-audit`, `SHIP` is closed until the audit gap is fixed.
-18. If a verdict is `caveat-required`, that caveat must already be reflected in the confirmed writeup.
-19. Next check result location.
-20. `experiments/{id}/smokes/` is provisional; `experiments/{id}/RESULTS.md` is confirmatory.
-21. If the best version of the claim depends on smoke output, `SHIP` is closed.
-22. Next check baseline integrity for comparison claims.
-23. Use `loadBaselines(cwd)`.
-24. Match the relevant entry to `baselineRef`.
-25. Use `getBaselineAgeDays(baseline)`.
-26. If the baseline is older than 30 days, refresh it before shipping comparison language.
-27. If the competitor number was never reproduced under your locked judge, do not ship the comparison headline.
-28. At this point the branch set should be obvious.
-29. If it is not obvious, read the files again.
+### 2. Read the money as diagnosis, not decoration
+1. Total spend is not enough.
+2. You must read the split from `getHypothesisSpendByCategory(cwd, id)`.
+3. Record both numbers: `llm` and `compute`.
+4. The split changes the story.
+5. A hypothesis that spent `$10` on LLM and `$200` on Modal is not failing the same way as one that spent `$180` on judge calls and `$5` on compute.
+6. Interpret the split before you write the reason:
+   - `llm >> compute` often means the hypothesis, judge, prompt, or search loop consumed the budget.
+   - `compute >> llm` often means the substrate, orchestration path, or execution economics consumed the budget.
+   - low spend with a decisive falsifier means kill quickly instead of defending the sunk cost.
+7. Compare total spend against `costCap`.
+8. If spend is greater than `1.5 × costCap`, treat it as a forced decision point.
+9. `SHIP` is closed until the overrun is explicitly resolved.
+10. If budget pressure drove the outcome, the lesson you write later uses `outcome: "COST_OVERRUN"`.
 
-### Phase 4: Choose the branch directly
-1. Use this rule set.
-2. If spend is above `1.5 × costCap` and there is no explicit justified exception, choose `KILL`.
-3. If spend is above `1.5 × costCap` but there is a concrete bounded reason to continue, choose `RECOMMIT`.
-4. If the run crossed 21 days with no commit, choose `KILL`.
-5. If the run crossed 7 days with no commit, stop drifting and force either `KILL` or `RECOMMIT` now.
-6. If prereg, judge lock, falsification, baseline freshness, and confirmed results are all clean, `SHIP` becomes available.
-7. Availability is not obligation.
-8. You still ship only if the result is worth saying out loud.
-9. You do not keep a weak result alive because killing it feels wasteful.
-10. You do not ship because leadership wants a win.
-11. You do not recommit because the sunk cost hurts.
-12. Choose the branch the evidence supports, not the branch that hurts least.
+### 3. Close branches that are not legally available
+1. `SHIP` is closed if `experiments/{id}/prereg.md` is missing.
+2. `SHIP` is closed if `judge.lock` is missing or does not match `computeJudgeHash(h.judgeRef, id)`.
+3. `SHIP` is closed if the claim still depends on `smokes/`.
+4. `SHIP` is closed if comparison language depends on a stale or unreproduced baseline.
+5. `SHIP` is closed if the falsifier files show unresolved `falsified-or-unreproducible` or `cannot-audit` verdicts.
+6. `SHIP` is closed if cost overrun was never explicitly resolved.
+7. `RECOMMIT` is closed if the claim changed.
+8. `RECOMMIT` is closed if the method changed.
+9. `REFINE` is closed if the claim changed.
+10. `REFINE` is closed if you cannot describe the old method, the new method, and why the claim itself still deserves to live.
+11. `PIVOT` is closed if you do not have a concrete new hypothesis.
+12. A killed hypothesis cannot be reopened in place.
+13. If the old idea deserves another life, it gets a new id.
 
-### Phase 5: If the answer is `KILL`, kill it cleanly
-1. `KILL` is the default terminal state for weak, stale, or over-burned work.
-2. Do it cleanly.
-3. Do it once.
-4. First update the hypothesis ledger.
-5. Call `updateHypothesisStatus(cwd, id, "KILLED")`.
-6. If the ledger should also carry the reason, reload entries with `loadHypotheses(cwd)`.
-7. Set the matching entry's `killReason`.
-8. Save the set back with `saveHypotheses(cwd, entries)`.
-9. Second, write `experiments/{id}/KILLED.md`.
-10. That file must include hypothesis ID, cumulative cost, time spent, and the reason for killing.
-11. Include the claim too.
-12. Use the real cost from `getHypothesisSpend(cwd, id)` and real elapsed time.
-13. Good reasons look like this: spend exceeded `1.5 × costCap` without stable improvement; falsification exposed a cheaper disconfirming explanation; the run crossed 21 days with no commit and auto-killed; the result depended on stale or unreproduced baselines.
-14. Bad reasons look like this: `maybe later`, `paused`, `not feeling it`.
-15. Third, stop further execution on that record.
-16. No more quiet runs under the same hypothesis.
-17. No more quote-mining from its smoke outputs.
-18. No more flipping `KILLED` back to `RUNNING`.
-19. Fourth, preserve the evidence trail.
-20. Do not delete `smokes/` and do not erase ledger entries.
-21. Do not rewrite the history into something softer.
-22. Fifth, enforce the sunk-cost rule.
-23. Killed hypotheses cannot be silently revived.
-24. If you want to revisit the idea, create a new entry in `HYPOTHESES.md`.
-25. That new attempt gets a new ID, new prereg, and new budget.
-26. Reusing the dead record is method fraud.
+### 4. When the adversary says `falsified`, ask the pivot question first
+Treat any `falsified-or-unreproducible` verdict as a real falsifier hit for this phase.
 
-### Phase 6: If the answer is `RECOMMIT`, make it a new contract
-1. `RECOMMIT` is not optimism and it is not procrastination dressed up as rigor.
-2. It means the original contract has been breached or is about to be breached, and you can state exactly why more work is justified.
-3. If you cannot name what changed, you do not have a recommit.
-4. You have attachment.
-5. First decide whether recommit is legal.
-6. If the record is already `KILLED`, do not silently reopen it.
-7. The sunk-cost rule still applies.
-8. Use a new hypothesis entry instead.
-9. If the run auto-killed after 21 days with no commit, treat it as dead.
-10. Second, write the override in `OVERRIDES.md`.
-11. Recommit requires a reason that is at least 50 characters long.
-12. That minimum exists to kill one-line excuses.
-13. The override should include date, hypothesis ID, trigger being overridden, old cap or time box, new cap or execution window, the reason, and what changed since the original plan.
-14. The reason must describe a concrete change in evidence or execution context.
-15. Acceptable reasons include a confirmed harness bug that invalidated earlier spend, a falsifier result that narrowed uncertainty to one decisive experiment, or a refreshed baseline that reopens the same comparison under the locked judge.
-16. Unacceptable reasons include `we're close`, `it feels promising`, and `leadership wants a win`.
-17. Third, update the live hypothesis record.
-18. Load entries with `loadHypotheses(cwd)`.
-19. Modify the matching entry.
-20. Keep the same ID only if the claim is still the same hypothesis.
-21. Update `costCap` if the budget changed.
-22. Keep or set status to `RUNNING` if work continues.
-23. Save with `saveHypotheses(cwd, entries)`.
-24. Fourth, narrow the scope.
-25. Write down the exact remaining experiment.
-26. If the remaining work is not specific, kill instead.
-27. Fifth, respect the gate.
-28. Continuing without `OVERRIDES.md` is not recommit.
-29. It is evasion.
-30. Sixth, route back into disciplined execution.
-31. The next runs should be the smallest set that can justify this exception.
+Ask this exact question before you even think about `KILL`:
 
-### Phase 7: If the answer is `SHIP`, prove it deserves sunlight
+> **What does this failure teach us that we didn't know before?**
+
+Then decide honestly:
+1. If the answer yields a concrete new claim, new boundary condition, or new comparator that the old evidence actually revealed, choose `PIVOT`.
+2. If the answer is just a plea for more effort, choose `KILL`.
+3. If the answer is `same claim, but we need a different method`, that is only `REFINE` when the claim itself survived and only the method is changing.
+4. If the falsifier killed the claim as stated, `REFINE` is not available.
+5. `PIVOT` comes before `KILL` in this branch because learning is the only honest rescue.
+6. No new learning, no pivot.
+
+### 5. Separate `RECOMMIT` from `REFINE`
+This is where people lie to themselves.
+
+Choose `RECOMMIT` only when all of these are true:
+- same hypothesis id
+- same claim
+- same method
+- same success condition
+- one bounded extra window of time or budget is justified by concrete new information
+
+Choose `REFINE` only when all of these are true:
+- same hypothesis id
+- same claim
+- same success or failure boundary
+- the method changed
+- the change is written explicitly
+- the claim is still worth testing after the method change
+
+If the claim changed, it is not `RECOMMIT`.
+If the claim changed, it is not `REFINE`.
+It is either `PIVOT` or `KILL`.
+
+### 6. Execute the chosen branch exactly
+
+#### If the answer is `KILL`
+1. `KILL` means the current claim is dead and there is no concrete better claim to register right now.
+2. Call `updateHypothesisStatus(cwd, id, "KILLED")`.
+3. Reload the entries with `loadHypotheses(cwd)`.
+4. Set the matching entry's `killReason`.
+5. Save the entries back with `saveHypotheses(cwd, entries)`.
+6. Write `experiments/{id}/KILLED.md`.
+7. Include:
+   - hypothesis id
+   - claim
+   - total spend
+   - spend split (`llm`, `compute`)
+   - compute target
+   - time spent
+   - decision: `KILL`
+   - root cause
+8. If budget pressure drove the kill, say so plainly and include the split.
+9. Preserve `smokes/`, falsifier files, and ledger history.
+10. Do not reopen the same id later.
+
+#### If the answer is `PIVOT`
+1. `PIVOT` means the old claim died.
+2. Start there.
+3. Update the old hypothesis to `KILLED`.
+4. Set `killReason` so it points to the new hypothesis id and the lesson learned.
+5. Write `experiments/{oldId}/KILLED.md`.
+6. The pivot note must include:
+   - old hypothesis id
+   - old claim
+   - why the old claim failed
+   - what the failure taught
+   - total spend and spend split
+   - new hypothesis id
+7. Then create a brand-new hypothesis entry.
+8. Use `loadHypotheses(cwd)`, append the new `HypothesisEntry`, then persist with `saveHypotheses(cwd, entries)`.
+9. New id. New timestamp. New contract.
+10. The new entry must include `id`, `claim`, `falsifier`, `bestCaseConclusion`, `n`, `judgeRef`, `baselineRef`, `costCap`, `computeTarget`, `status: OPEN`, and `timestamp`.
+11. If you cannot write the new claim concretely, then you do not have a pivot yet.
+12. Kill the old hypothesis honestly and return to `/skill:research-question` instead of faking specificity.
+13. The pivot rationale must explain what was learned, not merely what you want to try next.
+
+#### If the answer is `RECOMMIT`
+1. `RECOMMIT` is same claim, same method, tighter remaining work.
+2. Write the override in `OVERRIDES.md`.
+3. The reason must be at least 50 characters long.
+4. Include:
+   - date
+   - hypothesis id
+   - trigger being overridden
+   - old cap or window
+   - new cap or window
+   - exact remaining experiment
+   - what changed since the original plan
+5. If the remaining work is not specific, do not recommit.
+6. Update the live hypothesis entry only as needed:
+   - adjusted `costCap`
+   - status `RUNNING`
+7. Keep the same id.
+8. Keep the same claim.
+9. Keep the same method.
+10. If budget pressure forced the recommit, append a `COST_OVERRUN` lesson.
+
+#### If the answer is `REFINE`
+1. `REFINE` keeps the claim and changes the method.
+2. Write the override in `OVERRIDES.md`.
+3. The reason must be at least 50 characters long.
+4. The override must name:
+   - the old method
+   - the new method
+   - why the old method failed
+   - why the same claim still deserves a test
+5. Increment the refinement counter in the hypothesis entry.
+6. Write it as an explicit `- **Refinement count:** N` line in that hypothesis block.
+7. Because the current state serializer does not round-trip that field, preserve the line manually when you edit the block.
+8. If you must update supported fields in the same pass, re-read the raw markdown and make one careful edit instead of helper-round-tripping the block and dropping the counter.
+9. Keep the same id.
+10. Do not create a new hypothesis entry.
+11. If the change alters the claim, comparator, metric, baseline target, or the meaning of success, it is not `REFINE`.
+12. It is `PIVOT`.
+13. Once the override, method record, and counter are written, route the work back to `/skill:experiment-execution`.
+14. Do not jump from `REFINE` straight to publication.
+
+#### If the answer is `SHIP`
 1. `SHIP` is the rare branch.
-2. Rare is healthy.
-3. Before you ship, the repo must already look like a shipped result.
-4. First confirm that spend policy is still intact.
-5. If spend is greater than `1.5 × costCap`, do not jump straight to ship.
-6. You must either `KILL` or `RECOMMIT` first.
-7. Second confirm prereg integrity.
-8. `experiments/{id}/prereg.md` must exist.
-9. The confirmed result must correspond to the preregistered claim and setup.
-10. Third confirm judge integrity.
-11. Read `experiments/{id}/judge.lock` through `getJudgeLock(cwd, id)`.
-12. Recompute the expected hash with `computeJudgeHash(hypothesis.judgeRef, id)`.
-13. If those disagree, ship is blocked.
-14. Fourth confirm falsification is clean.
-15. Review the files under `experiments/{id}/falsifiers/`.
-16. If they are missing or stale, rerun `runFalsificationAdversary({ claim, context, cwd })`.
-17. A clean ship has no unresolved `falsified-or-unreproducible` verdicts, no ignored `cannot-audit` verdicts, and any `caveat-required` finding is reflected honestly in the result.
-18. Fifth confirm baseline integrity.
-19. Use `loadBaselines(cwd)` and `getBaselineAgeDays(...)`.
-20. If the cited baseline is older than 30 days, refresh before shipping the comparison.
-21. If the target was not reproduced under your locked judge, do not ship the comparative claim.
-22. Sixth confirm result location.
-23. Confirmed numbers belong in `experiments/{id}/RESULTS.md`.
-24. Provisional numbers belong in `experiments/{id}/smokes/`.
-25. Nothing in `smokes/` is quotable.
-26. Seventh update status.
-27. Call `updateHypothesisStatus(cwd, id, "CONFIRMED")`.
-28. Eighth tag and publish.
-29. Tag only after the confirmed artifacts are committed.
-30. Publish only what is confirmed, what survived falsification, and what the gates allow.
-31. If all gates passed, falsification is clean, and results are confirmed, ship the work.
+2. Before you take it, the repo must already look ship-ready.
+3. Confirm:
+   - prereg exists and still matches the claim
+   - `judge.lock` matches `computeJudgeHash(...)`
+   - the result survived falsification review
+   - any required baseline is fresh and reproduced
+   - the confirmed number lives in `experiments/{id}/RESULTS.md`
+   - the claim no longer depends on `smokes/`
+   - no unresolved cost overrun remains
+4. If any of that is false, `SHIP` is not available.
+5. If all of it is true, call `updateHypothesisStatus(cwd, id, "CONFIRMED")`.
+6. `SHIP` does not skip publication verification.
+7. It earns the right to start it.
 
-### Phase 8: Close the loop so the repository tells the truth without you present
-1. The repo should show one clear outcome per hypothesis.
-2. After a kill, the authoritative terminal artifact is `experiments/{id}/KILLED.md`.
-3. After a ship, the authoritative terminal artifact is `experiments/{id}/RESULTS.md`.
-4. After a recommit, the authoritative exception record is `OVERRIDES.md`.
-5. `HYPOTHESES.md` should agree with those artifacts.
-6. `status = KILLED` must not point to a live execution story.
-7. `status = CONFIRMED` must not depend on a smoke-only number.
-8. `status = RUNNING` after recommit must be backed by a real override.
-9. Leave the evidence trail intact.
-10. Do not delete falsifier outputs because they are inconvenient.
-11. Do not erase costs because the total looks bad.
-12. Do not relabel a kill as a pause.
-13. Future readers should be able to reconstruct the decision from files alone.
-14. If they cannot, the method failed.
+## Cross-Run Lessons Are Mandatory
+On `KILL`, `PIVOT`, or budget-driven overrun decisions, append a `LessonEntry` through `appendLesson()` from `src/state/repo.ts`.
+Do not hand-edit `.epistemic/lessons.jsonl`.
+
+Use the real fields:
+- `hypothesisId`
+- `outcome`
+- `summary`
+- `costSpent`
+- `rootCause`
+
+Canonical shape:
+```ts
+await appendLesson(cwd, {
+  timestamp: new Date().toISOString(),
+  hypothesisId: id,
+  outcome,
+  summary,
+  costSpent: totalSpend,
+  rootCause,
+});
+```
+
+Decision-to-lesson mapping:
+- `KILL` -> `outcome: "KILLED"` unless budget pressure was the forcing reason
+- `PIVOT` -> `outcome: "PIVOT"`
+- budget-driven `KILL` or `RECOMMIT` -> `outcome: "COST_OVERRUN"`
+
+Write the lesson like an adult:
+- `summary` says what was learned or why the line stopped
+- `rootCause` names the mechanism, not the mood
+- `costSpent` is the real total from `getHypothesisSpend(...)`
+
+Good `rootCause`:
+- `Modal compute burn dominated the run and no stable gain survived the locked judge.`
+- `Falsification showed the gain existed only on long-context tasks, so the general claim died.`
+
+Bad `rootCause`:
+- `Not feeling it`
+- `Maybe later`
+- `Too messy`
+
+## Close the Loop
+The decision is not done until the repository tells one story without you present.
+
+After `KILL` or `PIVOT`:
+- `HYPOTHESES.md` says `KILLED`
+- `killReason` is present
+- `experiments/{id}/KILLED.md` exists
+- `.epistemic/lessons.jsonl` has the lesson row
+
+After `RECOMMIT`:
+- `OVERRIDES.md` exists
+- the remaining work is bounded
+- any budget-driven exception has a `COST_OVERRUN` lesson
+- status stays `RUNNING` for a real reason, not habit
+
+After `REFINE`:
+- `OVERRIDES.md` exists
+- `Refinement count` incremented
+- the same claim still exists
+- the next step is `/skill:experiment-execution`
+
+After `SHIP`:
+- `experiments/{id}/RESULTS.md` is the authoritative artifact
+- status is `CONFIRMED`
+- nothing quoteable still depends on `smokes/`
+
+If the files disagree, the decision is not finished.
 
 ## Common Rationalizations
-
 | Excuse | Reality |
-|--------|---------|
-| `We already spent too much to stop now` | That is exactly why stopping may be correct. Prior spend is not evidence. |
-| `One more run will probably settle it` | If you cannot name the uncertainty it resolves, you are drifting. |
-| `The smokes look amazing` | `smokes/` is provisional and cannot justify a ship decision. |
-| `We'll add the override later` | An unwritten override is not a recommit. |
-| `We can flip it back from KILLED if needed` | Silent revival breaks the sunk-cost rule. New entry required. |
-| `The baseline is only a little stale` | If `getBaselineAgeDays(...) > 30`, the comparison is stale enough to block ship language. |
-| `The falsifier was being too picky` | Counterevidence does not disappear because it is inconvenient. |
-| `We can write judge.lock now` | Retroactive locks prove nothing. They only conceal drift. |
-| `Leadership needs a win` | Pressure does not convert weak evidence into confirmed results. |
-| `No commit doesn't mean no progress` | This workflow uses repository evidence, not private feelings of momentum. |
-| `Everything can't die` | Correct. Some things ship. Most should not. 5:1 kill-to-ship is normal. |
-| `Killing it means the work was wasted` | A documented kill preserves learning and prevents further waste. |
+| --- | --- |
+| `We already spent too much to stop now.` | Prior spend is not evidence. It is exactly why you need a decision. |
+| `Pivot is basically the same as keeping it alive.` | No. `PIVOT` kills the old claim and creates a new id. |
+| `Falsified means kill immediately.` | First ask what the failure taught. `PIVOT` comes before `KILL` when the evidence supports a new claim. |
+| `Refine and recommit are basically the same.` | No. `RECOMMIT` keeps the method. `REFINE` changes it. |
+| `The total cost is enough.` | No. Read the split. `$10` LLM + `$200` Modal is a different failure mode from `$180` of judge calls. |
+| `We can write the lesson later.` | Unwritten lessons are forgotten failures. Use `appendLesson()` now. |
+| `We can reopen the killed hypothesis if the new idea works.` | Silent revival is method fraud. New id required. |
+| `The smokes look great, so ship is fine.` | `smokes/` is provisional. It does not authorize `SHIP`. |
+| `The override can be one sentence.` | Short excuses are why the 50-character minimum exists. |
+| `Refinement count is bookkeeping.` | It is churn accounting. If the same claim needed three method rewrites, that matters. |
 
 ## Red Flags - STOP
-Stop and restart the decision process if:
-- you want to quote a number from `experiments/{id}/smokes/`
-- you want to ship even though spend exceeded `1.5 × costCap`
-- you want to reopen a `KILLED` record in place
-- you want to add `judge.lock` after results already exist
-- you want to ignore an adversary verdict because it feels unfair
-- you want to recommit without writing `OVERRIDES.md`
-- your override reason cannot clear 50 meaningful characters
-- you are calling a 21-day silent experiment `paused`
-- `HYPOTHESES.md` says one thing and the experiment folder says another
-- you are relying on baselines older than 30 days for a headline comparison
-- you cannot explain what concrete new evidence justifies more budget
-- you are deciding without reading the actual files
+Stop and restart the decision if:
+- you want to ship from `smokes/`
+- you want to ignore the spend split
+- you want to treat `COST_OVERRUN` like a branch instead of a lesson label
+- you want to pivot without a concrete new hypothesis id
+- you want to refine without naming the old and new method
+- you want to recommit even though the claim changed
+- you want to call a real falsifier hit a refinement
+- you want to keep the old id after changing the claim
+- you want to skip `.epistemic/lessons.jsonl` because the failure feels embarrassing
+- `HYPOTHESES.md`, `KILLED.md`, `RESULTS.md`, and `OVERRIDES.md` tell different stories
+
+All of those mean the same thing:
+stop, reread the artifacts, and let the repository win.
 
 ## Good vs Bad
-### Good: clean kill
+
+### Good: pivot from real learning
 ```markdown
 # KILLED
 - Hypothesis ID: h-017
-- Claim: Router A improves answer quality over Router B on eval-set-3.
-- Cumulative cost: $78.42
-- Time spent: 9 days
-- Decision: KILL
-- Reason: Spend exceeded 1.5× the $50 cap and the last two confirmed runs failed to reproduce the earlier smoke gain under the locked judge.
+- Claim: Router A improves answer quality over Router B across the full eval set.
+- Decision: PIVOT
+- Why old claim died: Falsification showed the gain vanished on short-context tasks under the locked judge.
+- What we learned: The effect appears limited to long-context routing.
+- Successor hypothesis: h-044
+- Spend: $210.14 total ($12.08 llm, $198.06 compute)
 ```
-Good because it records the real cost, the real time, and the real reason.
+Good because the old claim is dead, the lesson is explicit, and the new claim is narrower.
 
-### Bad: evasive kill note
+### Bad: sentimental pivot
+```markdown
+- Status: RUNNING
+- Note: same idea, just with a slightly smarter framing
+```
+Bad because nothing died, nothing was learned, and the new contract is hidden.
+
+### Good: refine the method without changing the claim
+```markdown
+## 2026-05-31 — Refine h-024
+- Reason: The claim is unchanged, but the extraction parser was dropping valid answers and contaminating the score. We are keeping the same claim, comparator, metric, and judge, updating only the parser, and rerunning the full preregistered sample.
+- Method change: parser v1 -> parser v2
+- Hypothesis entry: Refinement count 2
+```
+Good because the claim stayed put, the method change is explicit, and the churn is counted.
+
+### Bad: hide a method rewrite inside recommit
+```markdown
+## Override h-024
+- Reason: Want a few more runs and some evaluation cleanup
+```
+Bad because `evaluation cleanup` is method change disguised as budget extension.
+
+### Good: cost-overrun lesson with diagnosis
+```ts
+await appendLesson(cwd, {
+  timestamp: "2026-05-31T18:04:11.233Z",
+  hypothesisId: "h-031",
+  outcome: "COST_OVERRUN",
+  summary: "Killed after compute burn exceeded the budget without stable improvement.",
+  costSpent: 210.14,
+  rootCause: "Compute spend on modal dominated the run while the locked-judge win rate stayed flat.",
+});
+```
+Good because the lesson says why the budget mattered, not just that the number was large.
+
+### Bad: vague kill reason
 ```markdown
 # Maybe dead
 Spent a lot.
-Might revisit later if it becomes important.
+Might revisit later.
 ```
-Bad because it hides the decision and preserves deniability.
+Bad because it preserves deniability instead of recording a decision.
 
-### Good: recommit with a real override
-```markdown
-## 2026-05-31 — Recommit h-024
-- Trigger: spend exceeded 1.5× original cost cap
-- Old cap: $40
-- New cap: $65
-- Scope: rerun only the preregistered eval after fixing a confirmed batching bug
-- Reason: The prior spend is not informative because the harness duplicated 12% of prompts. The bug is fixed, the judge lock is unchanged, and one bounded rerun will decide whether the claim survives under the original prereg.
-```
-Good because it states what changed and binds the exception to one narrow next step.
-
-### Bad: recommit by attachment
-```markdown
-## Override h-024
-Reason: Feels close. Want a few more runs.
-```
-Bad because it is emotion masquerading as method.
-
-### Good: ship only after the repo is clean
-```markdown
-Decision checklist for h-031
-- prereg.md present and honored
-- judge.lock present and hash matches computeJudgeHash(...)
-- falsifiers reviewed with no unresolved falsified-or-unreproducible verdicts
-- cited baseline refreshed within 30 days
-- confirmed result written in experiments/h-031/RESULTS.md
-- status updated to CONFIRMED
-- ship tag created after the confirmed artifacts were committed
-```
-Good because ship depends on confirmed artifacts and gate compliance, not excitement.
-
-### Bad: shipping from smoke and hope
-```markdown
-We beat Model X by 4.2%.
-Source: experiments/h-031/smokes/run-07.md
-Need to clean up prereg and falsifier notes later.
-```
-Bad because provisional data is being treated like publishable truth.
-
-### Good: respect the sunk-cost rule
-```markdown
-# New hypothesis entry
-- ID: h-044
-- Claim: Router A with retrieval filter C improves answer quality over Router B.
-- Reason for new entry: h-017 was killed after budget overrun; this retry has a new preregistration, a fresh budget, and a materially different setup.
-```
-Good because the old record stays dead and the new attempt gets a fresh contract.
-
-### Bad: silent revival
-```markdown
-- ID: h-017
-- Status: RUNNING
-- Note: continuing after a short pause
-```
-Bad because it launders a dead experiment back into life.
-
-## Why This Matters
-This phase keeps research from turning into gambling.
-Without kill discipline, cost caps are decorative.
-Without recommit discipline, overrides become a back door for denial.
-Without ship discipline, publication becomes cherry-picking.
-
-A documented kill preserves learning.
-A documented recommit explains why an exception was justified.
-A documented ship proves the claim survived prereg, judge integrity, baseline freshness, falsification, and confirmed-result checks.
-
-That is how the repository tells the truth even when nobody is in the room.
-Anything weaker is just expensive self-deception.
-
-After this, use `/skill:verification-before-publication`.
+After `SHIP`, the next required skill is `/skill:verification-before-publication`.

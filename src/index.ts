@@ -1,13 +1,20 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { registerPreregGate } from "./gates/prereg.js";
+import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis } from "./state/repo.js";
+import { refreshEpistemicWidget } from "./tui/widget.js";
 
 let initialized = false;
+let sessionCtx: ExtensionContext | null = null;
+
+// Gates currently registered — extended as more gates are added.
+const ACTIVE_GATES = ["prereg"];
 
 export default async function (pi: ExtensionAPI) {
   // ─── Session start: detect epistemic repo, activate gates ───
   pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
+    sessionCtx = ctx;
     try {
       const state = await loadRepoState(ctx.cwd);
       if (!initialized) {
@@ -20,6 +27,7 @@ export default async function (pi: ExtensionAPI) {
         );
         initialized = true;
       }
+      await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
     } catch {}
   });
 
@@ -33,6 +41,7 @@ export default async function (pi: ExtensionAPI) {
 
   // ─── Gates (methodology enforcement) ──────────────────────────
   registerPreregGate(pi as any); // Block unprereg'd experiments
+  registerHuggingFaceTools(pi);   // HF dataset metadata tools
 
   // Planned gates (not yet implemented):
   // registerJudgeLockGate(pi as any);   // Lock judge config
@@ -52,6 +61,10 @@ function setupBeforeAgentStart(pi: any) {
     try {
       const entries = await loadHypotheses(event.cwd);
       const active = getActiveHypothesis(entries);
+
+      if (sessionCtx) {
+        await refreshEpistemicWidget(sessionCtx, event.cwd, ACTIVE_GATES);
+      }
       if (!active) return;
 
       const summary = [
