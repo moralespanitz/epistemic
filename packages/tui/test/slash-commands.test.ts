@@ -29,6 +29,11 @@ test("unknown command reports the word", () => {
   expect(parseSlash("/frobnicate")).toEqual({ kind: "unknown", arg: "frobnicate" });
 });
 
+test("a bare slash shows help", () => {
+  expect(parseSlash("/")?.kind).toBe("help");
+  expect(parseSlash("/   ")?.kind).toBe("help");
+});
+
 test("commands are case-insensitive and trim whitespace", () => {
   expect(parseSlash("/TREE")).toEqual({ kind: "lens", arg: "tree" });
   expect(parseSlash("/  spawn  H-1  ")).toEqual({ kind: "spawn", arg: "H-1" });

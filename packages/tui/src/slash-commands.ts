@@ -26,6 +26,7 @@ export function parseSlash(text: string): SlashResult | null {
   const arg = rest.join(" ") || undefined;
   const w = word.toLowerCase();
 
+  if (!w) return { kind: "help" }; // bare "/" → show help
   if (LENS_WORDS.has(w)) return { kind: "lens", arg: w };
   if (w === "spawn") return { kind: "spawn", arg };
   if (w === "kill") return { kind: "kill", arg };

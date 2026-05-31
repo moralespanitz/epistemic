@@ -61,3 +61,22 @@ test("typing /spawn and pressing enter spawns the selected experiment", async ()
   await tick();
   expect(d.runner.spawn).toHaveBeenCalledWith("H-001", "local");
 });
+
+test("a second message while busy is rejected (no cross-talk)", async () => {
+  const d = deps();
+  // ask that never resolves — keeps the app busy
+  d.ask = vi.fn(() => new Promise<string>(() => {}));
+  const { stdin } = render(<App {...d} />);
+  await tick();
+  stdin.write("first");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  stdin.write("second");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  // Only the first message reached the agent; the second was rejected while busy.
+  expect(d.ask).toHaveBeenCalledTimes(1);
+  expect(d.ask.mock.calls[0][0]).toBe("first");
+});

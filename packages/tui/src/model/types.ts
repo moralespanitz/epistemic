@@ -9,6 +9,8 @@ export type LensName = "chat" | "tree" | "missions" | "focus";
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   text: string;
+  /** Stable identity for React reconciliation (assigned when pushed). */
+  id?: number;
 }
 
 export type RunStatus = "pending" | "running" | "done" | "failed" | "killed";

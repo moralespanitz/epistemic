@@ -37,17 +37,26 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const nextId = React.useRef(0);
 
   useEffect(() => subscribe(setWorld), [subscribe]);
 
   const nodes = world.nodes;
   const selected = nodes[Math.min(selectedIdx, Math.max(nodes.length - 1, 0))];
 
-  const pushMessage = (m: ChatMessage) => setMessages((prev) => [...prev, m]);
+  const pushMessage = (m: ChatMessage) => setMessages((prev) => [...prev, { ...m, id: nextId.current++ }]);
+
+  // Push a system note and make sure it's visible (switch to the chat view).
+  const note = (text: string) => { pushMessage({ role: "system", text }); setLens("chat"); };
 
   const sendToAgent = async (text: string) => {
+    if (busy) { note("still waiting on the previous reply — try again in a moment"); return; }
     setLens("chat");
-    setMessages((prev) => [...prev, { role: "user", text }, { role: "assistant", text: "" }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text, id: nextId.current++ },
+      { role: "assistant", text: "", id: nextId.current++ },
+    ]);
     setBusy(true);
     const ctx: NodeContext | undefined = selected
       ? { id: selected.id, claim: selected.claim, status: selected.status }
@@ -77,14 +86,14 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
           pushMessage({ role: "system", text: `spawned experiment ${node.id} (${node.computeTarget})` });
           setLens("missions");
         } else {
-          pushMessage({ role: "system", text: "no hypothesis to spawn — select one with ↑↓ or pass an id" });
+          note("no hypothesis to spawn — select one with ↑↓ or pass an id");
         }
         break;
       }
       case "kill": {
         const id = r.arg ?? selected?.id;
-        if (id) { runner.kill(id); pushMessage({ role: "system", text: `killed ${id}` }); }
-        else pushMessage({ role: "system", text: "no experiment to kill" });
+        if (id) { runner.kill(id); note(`killed ${id}`); }
+        else note("no experiment to kill");
         break;
       }
       case "review":
@@ -93,13 +102,13 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
         );
         break;
       case "help":
-        pushMessage({ role: "system", text: HELP_TEXT });
+        note(HELP_TEXT);
         break;
       case "quit":
         exit();
         break;
       case "unknown":
-        pushMessage({ role: "system", text: `unknown command: /${r.arg} — try /help` });
+        note(`unknown command: /${r.arg} — try /help`);
         break;
     }
   };

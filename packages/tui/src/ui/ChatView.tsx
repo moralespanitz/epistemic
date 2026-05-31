@@ -22,7 +22,7 @@ export function ChatView({ messages, busy }: { messages: ChatMessage[]; busy: bo
         </Box>
       )}
       {recent.map((m, i) => (
-        <Box key={i} flexDirection="column" marginTop={1}>
+        <Box key={m.id ?? i} flexDirection="column" marginTop={1}>
           <Text bold color={ROLE_COLOR[m.role]}>{ROLE_LABEL[m.role]}</Text>
           <Text>{m.text || (m.role === "assistant" && busy ? "…" : "")}</Text>
         </Box>
