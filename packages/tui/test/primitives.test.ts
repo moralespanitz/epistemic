@@ -43,3 +43,22 @@ test("treeLines renders roots and indented children", () => {
   // selected marker
   expect(lines[1]).toContain("▸");
 });
+
+test("treeLines returns empty array for empty input", () => {
+  expect(treeLines([])).toEqual([]);
+});
+
+test("treeLines renders unknown status with '?' icon", () => {
+  const n = node({ id: "H-X", status: "OPEN" });
+  // Temporarily patch status to something unknown
+  const lines = treeLines([{ ...n, status: "UNKNOWN" as any }]);
+  expect(lines[0]).toContain("?");
+});
+
+test("treeLines does not infinite-loop on cyclic data", () => {
+  const a = node({ id: "A", childIds: ["B"] });
+  const b = node({ id: "B", parentId: "A", childIds: ["A"] });
+  expect(() => treeLines([a, b])).not.toThrow();
+  const lines = treeLines([a, b]);
+  expect(lines.length).toBe(2); // A and B, no infinite repeat
+});

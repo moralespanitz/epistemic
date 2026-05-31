@@ -10,17 +10,19 @@ export function treeLines(nodes: HypothesisNode[], selectedId?: string): string[
   const roots = nodes.filter((n) => !n.parentId || !byId.has(n.parentId));
   const lines: string[] = [];
 
-  const walk = (node: HypothesisNode, depth: number) => {
+  const walk = (node: HypothesisNode, depth: number, visited: Set<string>) => {
+    if (visited.has(node.id)) return;
+    visited.add(node.id);
     const indent = "  ".repeat(depth);
     const marker = node.id === selectedId ? "▸" : " ";
     const icon = STATUS_ICON[node.status] ?? "?";
     lines.push(`${indent}${marker} ${icon} ${node.id}  ${node.claim.slice(0, 40)}`);
     for (const childId of node.childIds) {
       const child = byId.get(childId);
-      if (child) walk(child, depth + 1);
+      if (child) walk(child, depth + 1, visited);
     }
   };
 
-  for (const root of roots) walk(root, 0);
+  for (const root of roots) walk(root, 0, new Set());
   return lines;
 }
