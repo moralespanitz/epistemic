@@ -67,3 +67,16 @@ test("buildWorld defaults run status to pending when no run-status file", () => 
   });
   expect(world.runs.find((r) => r.id === "H-009")!.status).toBe("pending");
 });
+
+test("buildWorld derives run status 'done' from telemetry completion", () => {
+  const entries = [entry({ id: "H-010", status: "RUNNING", n: 10 })];
+  const world = buildWorld(entries, {
+    hypothesesContent: "",
+    spends: {},
+    lessons: [],
+    telemetry: { "H-010": [{ trial: 10, total: 10, cost: 5, acc: 0.9, t: 1 }] },
+    runStatus: {}, // no explicit run-status file
+    alternatives: {},
+  });
+  expect(world.runs.find((r) => r.id === "H-010")!.status).toBe("done");
+});
