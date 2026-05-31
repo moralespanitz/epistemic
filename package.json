@@ -1,0 +1,20 @@
+{
+  "name": "@epistemic/pi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Research-methodology skills for coding agents — hypothesis registration, preregistration, baseline reproduction, experiment execution, falsification review, surprise triage, and kill-or-ship decisions. Gates enforce the rules automatically.",
+  "keywords": ["pi-package", "epistemic", "research", "methodology", "reproducibility"],
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./src/index.ts"],
+    "skills": ["./skills"]
+  }
+}
