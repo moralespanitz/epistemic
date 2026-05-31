@@ -1,4 +1,11 @@
 #!/usr/bin/env node
-// Stub — full implementation in packages/tui/src/main.tsx (Task 12)
-console.error("epistemic-tui: not yet implemented — run: npx tsx packages/tui/src/main.tsx");
-process.exit(1);
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const entry = join(here, "..", "src", "main.tsx");
+const result = spawnSync("npx", ["tsx", entry, ...process.argv.slice(2)], {
+  stdio: "inherit",
+});
+process.exit(result.status ?? 0);

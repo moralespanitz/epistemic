@@ -1,5 +1,7 @@
 import type { ComputeTarget, HypothesisStatus, LessonEntry } from "../epistemic-state.js";
 
+export type { ComputeTarget };
+
 export type RunStatus = "pending" | "running" | "done" | "failed" | "killed";
 
 export interface TelemetryPoint {
