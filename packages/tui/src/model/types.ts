@@ -23,6 +23,13 @@ export interface ExperimentRun {
   costCap: number;
 }
 
+/** A conditional plan: "if <condition> → <ifTrue>, else → <ifFalse>". */
+export interface ConditionalPlan {
+  condition: string;
+  ifTrue: string;
+  ifFalse: string;
+}
+
 export interface HypothesisNode {
   id: string;
   claim: string;
@@ -33,6 +40,7 @@ export interface HypothesisNode {
   parentId?: string;
   childIds: string[];
   alternativeIds: string[];
+  conditionalPlan?: ConditionalPlan;
   killReason?: string;
 }
 

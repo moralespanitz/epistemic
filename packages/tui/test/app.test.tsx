@@ -27,17 +27,21 @@ test("App starts on the missions lens and shows footer hints", () => {
   expect(lastFrame()).toContain("[1]tree");
 });
 
+const tick = () => new Promise((r) => setTimeout(r, 30));
+
 test("pressing 1 switches to the tree lens", async () => {
   const { lastFrame, stdin } = render(<App {...deps()} />);
+  await tick(); // let useInput attach its listener before writing
   stdin.write("1");
-  await new Promise((r) => setTimeout(r, 20));
+  await tick();
   expect(lastFrame()).toContain("RESEARCH TREE");
 });
 
 test("pressing s spawns the selected experiment", async () => {
   const d = deps();
   const { stdin } = render(<App {...d} />);
+  await tick(); // let useInput attach its listener before writing
   stdin.write("s");
-  await new Promise((r) => setTimeout(r, 20));
+  await tick();
   expect(d.runner.spawn).toHaveBeenCalledWith("H-001", "local");
 });

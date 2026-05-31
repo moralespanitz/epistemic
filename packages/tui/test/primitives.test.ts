@@ -31,7 +31,7 @@ function node(p: Partial<HypothesisNode>): HypothesisNode {
   };
 }
 
-test("treeLines renders roots and indented children", () => {
+test("treeLines renders roots and children with box-drawing connectors", () => {
   const nodes = [
     node({ id: "H-001", status: "CONFIRMED", childIds: ["H-004"] }),
     node({ id: "H-004", status: "RUNNING", parentId: "H-001" }),
@@ -39,9 +39,40 @@ test("treeLines renders roots and indented children", () => {
   const lines = treeLines(nodes, "H-004");
   expect(lines[0]).toContain("H-001");
   expect(lines[1]).toContain("H-004");
-  expect(lines[1]).toMatch(/^\s+/); // child is indented
-  // selected marker
-  expect(lines[1]).toContain("▸");
+  expect(lines[1]).toMatch(/^[├└]─ /); // child uses a tree connector
+  expect(lines[1]).toContain("▸"); // selected marker
+});
+
+test("treeLines renders conditional plans as decision branches", () => {
+  const nodes = [
+    node({
+      id: "H-004",
+      conditionalPlan: { condition: "acc ≥ 0.80", ifTrue: "ship", ifFalse: "H-006 pivot" },
+    }),
+  ];
+  const lines = treeLines(nodes);
+  const joined = lines.join("\n");
+  expect(joined).toContain("if acc ≥ 0.80 → ship");
+  expect(joined).toContain("else → H-006 pivot");
+});
+
+test("treeLines renders alternatives as sideways branches", () => {
+  const nodes = [node({ id: "H-003", alternativeIds: ["qlora", "adapter"] })];
+  const joined = treeLines(nodes).join("\n");
+  expect(joined).toContain("↳ alt: qlora");
+  expect(joined).toContain("↳ alt: adapter");
+});
+
+test("treeLines renders multiple independent roots as parallel trees", () => {
+  const nodes = [
+    node({ id: "H-001", childIds: [] }),
+    node({ id: "H-100", childIds: [] }), // independent root, no parent
+  ];
+  const lines = treeLines(nodes);
+  // Both roots present, separated by a blank line
+  expect(lines.some((l) => l.includes("H-001"))).toBe(true);
+  expect(lines.some((l) => l.includes("H-100"))).toBe(true);
+  expect(lines).toContain("");
 });
 
 test("treeLines returns empty array for empty input", () => {

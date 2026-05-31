@@ -8,12 +8,14 @@ export interface CommandBarProps {
   busy: boolean;
   onChange: (next: string) => void;
   onSubmit: () => void;
+  onClose: () => void;
 }
 
-export function CommandBar({ visible, draft, answer, busy, onChange, onSubmit }: CommandBarProps) {
+export function CommandBar({ visible, draft, answer, busy, onChange, onSubmit, onClose }: CommandBarProps) {
   useInput(
     (input, key) => {
       if (!visible) return;
+      if (key.escape) { onClose(); return; }
       if (key.return) { onSubmit(); return; }
       if (key.backspace || key.delete) { onChange(draft.slice(0, -1)); return; }
       if (input && !key.ctrl && !key.meta) onChange(draft + input);

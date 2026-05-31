@@ -12,6 +12,7 @@ test("CommandBar shows the prompt and streamed answer", () => {
       busy={false}
       onChange={() => {}}
       onSubmit={() => {}}
+      onClose={() => {}}
     />,
   );
   expect(lastFrame()).toContain("why diverge?");
@@ -20,14 +21,25 @@ test("CommandBar shows the prompt and streamed answer", () => {
 
 test("CommandBar renders nothing when not visible", () => {
   const { lastFrame } = render(
-    <CommandBar visible={false} draft="" answer="" busy={false} onChange={() => {}} onSubmit={() => {}} />,
+    <CommandBar visible={false} draft="" answer="" busy={false} onChange={() => {}} onSubmit={() => {}} onClose={() => {}} />,
   );
   expect(lastFrame()?.trim()).toBe("");
 });
 
 test("CommandBar shows a thinking indicator when busy", () => {
   const { lastFrame } = render(
-    <CommandBar visible={true} draft="q" answer="" busy={true} onChange={() => {}} onSubmit={() => {}} />,
+    <CommandBar visible={true} draft="q" answer="" busy={true} onChange={() => {}} onSubmit={() => {}} onClose={() => {}} />,
   );
   expect(lastFrame()).toContain("thinking");
+});
+
+test("CommandBar calls onClose when escape is pressed", async () => {
+  let closed = false;
+  const { stdin } = render(
+    <CommandBar visible={true} draft="q" answer="" busy={false} onChange={() => {}} onSubmit={() => {}} onClose={() => { closed = true; }} />,
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  stdin.write("\x1B"); // escape
+  await new Promise((r) => setTimeout(r, 20));
+  expect(closed).toBe(true);
 });

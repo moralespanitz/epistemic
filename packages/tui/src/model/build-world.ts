@@ -2,7 +2,7 @@ import type { HypothesisEntry } from "../epistemic-state.js";
 import type {
   ExperimentRun, HypothesisNode, ResearchWorld, RunStatus, WorldInputs,
 } from "./types.js";
-import { parseParentEdges } from "./parse-edges.js";
+import { parseParentEdges, parseConditionalPlans } from "./parse-edges.js";
 
 function deriveRunStatus(
   id: string,
@@ -18,6 +18,7 @@ function deriveRunStatus(
 
 export function buildWorld(entries: HypothesisEntry[], inputs: WorldInputs): ResearchWorld {
   const edges = parseParentEdges(inputs.hypothesesContent);
+  const plans = parseConditionalPlans(inputs.hypothesesContent);
 
   const nodes: HypothesisNode[] = entries.map((e) => ({
     id: e.id,
@@ -29,6 +30,7 @@ export function buildWorld(entries: HypothesisEntry[], inputs: WorldInputs): Res
     parentId: edges.get(e.id),
     childIds: [],
     alternativeIds: inputs.alternatives[e.id] ?? [],
+    conditionalPlan: plans.get(e.id),
     killReason: e.killReason,
   }));
 

@@ -4,3 +4,8 @@ node_modules/
 .DS_Store
 dist/
 .superpowers/
+# local demo/research artifacts
+HYPOTHESES.md
+BASELINES.md
+RESULTS.md
+experiments/
