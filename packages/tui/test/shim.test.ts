@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { loadHypotheses } from "../src/epistemic-state.ts";
+import { loadHypotheses } from "../src/epistemic-state.js";
 
 test("shim re-exports loadHypotheses as a function", () => {
   expect(typeof loadHypotheses).toBe("function");
