@@ -69,18 +69,12 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
     const handleData = (chunk: Buffer | string) => {
       const { input, key } = parseRaw(String(chunk));
 
-      if (key.escape) {
-        setBarVisible(false);
-        setAnswer("");
-        setDraft("");
+      // When the command bar is open, only handle escape to close it.
+      // CommandBar's own useInput handles all typing.
+      if (barVisible) {
+        if (key.escape) { setBarVisible(false); setAnswer(""); setDraft(""); }
         return;
       }
-      // When the command bar is open let its own useInput handle typing.
-      // We only intercept escape (handled above).
-      setBarVisible((visible) => {
-        if (visible) return visible;
-        return visible;
-      });
 
       // Read barVisible from the closure — use a ref-style trick via setState
       // callback to get the current value without re-registering the listener.
@@ -94,11 +88,8 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
           else if (key.upArrow) setSelectedIdx((i) => Math.max(0, i - 1));
           else if (key.downArrow) setSelectedIdx((i) => Math.min(nodes.length - 1, i + 1));
           else if (input === "s" && selected) void runner.spawn(selected.id, selected.computeTarget);
-          else if (input === "k" && selected) runner.kill(selected.id);
+          else if (input === "k" && selected && !key.ctrl) runner.kill(selected.id);
           else if (key.ctrl && input === "k") { return true; } // open bar
-        } else {
-          // bar is visible — forward character input to draft
-          if (input && !key.ctrl) setDraft((d) => d + input);
         }
         return visible;
       });
