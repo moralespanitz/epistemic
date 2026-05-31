@@ -27,7 +27,7 @@ export interface FalsifierOptions {
 export async function runFalsificationAdversary(
   options: FalsifierOptions
 ): Promise<AdversaryVerdict[]> {
-  const { claim, cwd, onProgress } = options;
+  const { claim, cwd: _cwd, onProgress } = options;
 
   onProgress?.(`Ξ Falsification adversary running for: "${claim.slice(0, 60)}..."`);
 
@@ -42,18 +42,17 @@ export async function runFalsificationAdversary(
   for (const adv of adversaries) {
     try {
       onProgress?.(`  → Dispatching to ${adv.name}...`);
-      const verdict = await runSingleAdversary(adv, claim, cwd);
+      const verdict = await runSingleAdversary(adv, claim, _cwd);
       verdicts.push(verdict);
       onProgress?.(`  ← ${adv.name}: ${verdict.verdict}`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       verdicts.push({
-        claim,
-        modelId: adv.name,
-        providerId: adv.provider,
-        disconfirmingExperiment: `Error contacting ${adv.name}: ${errorMsg}`,
+        name: adv.name,
+        model: adv.model,
+        provider: adv.provider,
+        experiment: `Error contacting ${adv.name}: ${errorMsg}`,
         costEstimate: 0,
-        hasBeenRun: false,
         verdict: "cannot-audit",
         reasoning: `Failed to get response from ${adv.name}: ${errorMsg}`,
       });
@@ -75,12 +74,11 @@ async function runSingleAdversary(
   const apiKey = getApiKey(adv.provider);
   if (!apiKey) {
     return {
-      claim,
-      modelId: adv.name,
-      providerId: adv.provider,
-      disconfirmingExperiment: `No API key configured for ${adv.provider}`,
+      name: adv.name,
+      model: adv.model,
+      provider: adv.provider,
+      experiment: `No API key configured for ${adv.provider}`,
       costEstimate: 0,
-      hasBeenRun: false,
       verdict: "cannot-audit",
       reasoning: `Missing API key for ${adv.provider}. Set ${getEnvVarName(adv.provider)} environment variable.`,
     };
@@ -90,12 +88,11 @@ async function runSingleAdversary(
   const result = await callLLM(adv, apiKey, messages);
 
   return {
-    claim,
-    modelId: adv.name,
-    providerId: adv.provider,
-    disconfirmingExperiment: result.experiment,
+    name: adv.name,
+    model: adv.model,
+    provider: adv.provider,
+    experiment: result.experiment,
     costEstimate: result.costEstimate,
-    hasBeenRun: false,
     verdict: result.verdict as AdversaryVerdict["verdict"],
     reasoning: result.reasoning,
   };

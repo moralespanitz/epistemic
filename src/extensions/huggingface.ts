@@ -1,5 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { Type } from "@sinclair/typebox";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 type RepoType = "model" | "dataset" | "space";
 
@@ -130,11 +129,11 @@ async function readRepoFile(params: {
 // ─── Extension entry ────────────────────────────────────────────────
 
 export function registerHuggingFaceTools(pi: ExtensionAPI): void {
-  const repoTypeSchema = Type.Optional(
-    Type.Union([Type.Literal("model"), Type.Literal("dataset"), Type.Literal("space")], {
-      description: "Hub repository type. Defaults to dataset.",
-    }),
-  );
+  const repoTypeSchema = {
+    type: "string",
+    enum: ["model", "dataset", "space"],
+    description: "Hub repository type. Defaults to dataset.",
+  };
 
   pi.registerTool({
     name: "hf_dataset_info",
@@ -146,9 +145,13 @@ export function registerHuggingFaceTools(pi: ExtensionAPI): void {
       "Use hf_dataset_info before declaring a dataset usable in an experiment.",
       "Treat missing features or splits as unverified — do not assume schema.",
     ],
-    parameters: Type.Object({
-      dataset: Type.String({ description: "Dataset repo id, e.g. HuggingFaceH4/ultrachat_200k." }),
-    }),
+    parameters: {
+      type: "object",
+      properties: {
+        dataset: { type: "string", description: "Dataset repo id, e.g. HuggingFaceH4/ultrachat_200k." },
+      },
+      required: ["dataset"],
+    },
     async execute(_id: string, params: any) {
       const result = await datasetInfo(params.dataset);
       return { content: [{ type: "text", text: formatText(result) }], details: result };
@@ -164,14 +167,18 @@ export function registerHuggingFaceTools(pi: ExtensionAPI): void {
     promptGuidelines: [
       "Use hf_repo_files before hf_repo_read_file to avoid weight files, archives, and shards.",
     ],
-    parameters: Type.Object({
-      repo: Type.String({ description: "Hub repo id, e.g. openai-community/gpt2." }),
-      repoType: repoTypeSchema,
-      revision: Type.Optional(Type.String({ description: "Branch, tag, or commit. Defaults to main." })),
-      path: Type.Optional(Type.String({ description: "Optional subdirectory." })),
-      recursive: Type.Optional(Type.Boolean({ description: "List recursively. Defaults to false." })),
-      limit: Type.Optional(Type.Number({ description: "Max files to return. Default 200, max 1000." })),
-    }),
+    parameters: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Hub repo id, e.g. openai-community/gpt2." },
+        repoType: repoTypeSchema,
+        revision: { type: "string", description: "Branch, tag, or commit. Defaults to main." },
+        path: { type: "string", description: "Optional subdirectory." },
+        recursive: { type: "boolean", description: "List recursively. Defaults to false." },
+        limit: { type: "number", description: "Max files to return. Default 200, max 1000." },
+      },
+      required: ["repo"],
+    },
     async execute(_id: string, params: any) {
       const result = await repoFiles({
         repo: params.repo,
@@ -194,13 +201,17 @@ export function registerHuggingFaceTools(pi: ExtensionAPI): void {
     promptGuidelines: [
       "Use only for small text files. Never read weights, archives, or dataset shards.",
     ],
-    parameters: Type.Object({
-      repo: Type.String({ description: "Hub repo id." }),
-      repoType: repoTypeSchema,
-      path: Type.String({ description: "File path inside the repo, e.g. README.md." }),
-      revision: Type.Optional(Type.String({ description: "Branch, tag, or commit. Defaults to main." })),
-      maxChars: Type.Optional(Type.Number({ description: "Max chars to return. Default 20000, max 60000." })),
-    }),
+    parameters: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Hub repo id." },
+        repoType: repoTypeSchema,
+        path: { type: "string", description: "File path inside the repo, e.g. README.md." },
+        revision: { type: "string", description: "Branch, tag, or commit. Defaults to main." },
+        maxChars: { type: "number", description: "Max chars to return. Default 20000, max 60000." },
+      },
+      required: ["repo", "path"],
+    },
     async execute(_id: string, params: any) {
       const result = await readRepoFile({
         repo: params.repo,
