@@ -21,27 +21,43 @@ const deps = () => ({
   ask: vi.fn().mockResolvedValue("answer"),
 });
 
-test("App starts on the missions lens and shows footer hints", () => {
-  const { lastFrame } = render(<App {...deps()} />);
-  expect(lastFrame()).toContain("MISSION CONTROL");
-  expect(lastFrame()).toContain("[1]tree");
-});
-
 const tick = () => new Promise((r) => setTimeout(r, 30));
 
-test("pressing 1 switches to the tree lens", async () => {
+test("App starts on the chat view with a persistent input", () => {
+  const { lastFrame } = render(<App {...deps()} />);
+  expect(lastFrame()).toContain("CONVERSATION");
+  expect(lastFrame()).toContain("enter send");
+});
+
+test("typing /tree and pressing enter switches to the tree view", async () => {
   const { lastFrame, stdin } = render(<App {...deps()} />);
-  await tick(); // let useInput attach its listener before writing
-  stdin.write("1");
+  await tick();
+  stdin.write("/tree");
+  await tick();
+  stdin.write("\r"); // enter
   await tick();
   expect(lastFrame()).toContain("RESEARCH TREE");
 });
 
-test("pressing s spawns the selected experiment", async () => {
+test("typing a plain message and pressing enter sends it to the agent", async () => {
   const d = deps();
   const { stdin } = render(<App {...d} />);
-  await tick(); // let useInput attach its listener before writing
-  stdin.write("s");
+  await tick();
+  stdin.write("why did it diverge?");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  expect(d.ask).toHaveBeenCalled();
+  expect(d.ask.mock.calls[0][0]).toBe("why did it diverge?");
+});
+
+test("typing /spawn and pressing enter spawns the selected experiment", async () => {
+  const d = deps();
+  const { stdin } = render(<App {...d} />);
+  await tick();
+  stdin.write("/spawn");
+  await tick();
+  stdin.write("\r");
   await tick();
   expect(d.runner.spawn).toHaveBeenCalledWith("H-001", "local");
 });

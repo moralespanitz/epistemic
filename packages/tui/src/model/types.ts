@@ -2,6 +2,15 @@ import type { ComputeTarget, HypothesisStatus, LessonEntry } from "../epistemic-
 
 export type { ComputeTarget };
 
+/** Which view fills the main pane. "chat" is the default, conversational view. */
+export type LensName = "chat" | "tree" | "missions" | "focus";
+
+/** One line of the conversation. */
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  text: string;
+}
+
 export type RunStatus = "pending" | "running" | "done" | "failed" | "killed";
 
 export interface TelemetryPoint {
