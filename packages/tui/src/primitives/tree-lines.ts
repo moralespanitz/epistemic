@@ -5,10 +5,10 @@ const STATUS_ICON: Record<string, string> = {
 };
 
 /**
- * Render the hypothesis forest as indented ASCII lines using box-drawing
- * connectors. Each independent root becomes its own parallel tree. Under each
- * node we render its conditional plan (if any) and archived alternatives as
- * sideways branches.
+ * Render the research program as a top-down decision tree: nodes flow downward,
+ * children hang off a vertical spine, and a hypothesis with a conditional plan
+ * branches into an explicit decision fork (◇ if … → yes / no). Alternatives hang
+ * as side threads. Each independent root is its own tree, separated by a blank line.
  */
 export function treeLines(nodes: HypothesisNode[], selectedId?: string): string[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -19,35 +19,35 @@ export function treeLines(nodes: HypothesisNode[], selectedId?: string): string[
     if (visited.has(node.id)) return;
     visited.add(node.id);
 
-    const connector = isRoot ? "" : isLast ? "└─ " : "├─ ";
-    const marker = node.id === selectedId ? "▸" : " ";
+    const branch = isRoot ? "" : isLast ? "└─▶ " : "├─▶ ";
+    const bullet = node.id === selectedId ? "▸" : "●";
     const icon = STATUS_ICON[node.status] ?? "?";
-    lines.push(`${prefix}${connector}${marker}${icon} ${node.id}  ${node.claim.slice(0, 38)}`);
+    lines.push(`${prefix}${branch}${bullet} ${icon} ${node.id}  ${node.claim.slice(0, 36)}`);
 
-    // Continuation prefix for everything nested under this node.
-    const childPrefix = isRoot ? "" : prefix + (isLast ? "   " : "│  ");
+    // Everything below this node is indented under its spine.
+    const below = isRoot ? "" : prefix + (isLast ? "    " : "│   ");
 
-    // Conditional plan rendered as a dotted decision branch.
+    // Decision fork from the conditional plan.
     if (node.conditionalPlan) {
       const p = node.conditionalPlan;
-      lines.push(`${childPrefix}  ⋯ if ${p.condition} → ${p.ifTrue}`);
-      lines.push(`${childPrefix}  ⋯ else → ${p.ifFalse}`);
+      lines.push(`${below}│`);
+      lines.push(`${below}◇ if ${p.condition}`);
+      lines.push(`${below}├─ yes → ${p.ifTrue}`);
+      lines.push(`${below}└─ no  → ${p.ifFalse}`);
     }
 
-    // Archived alternatives as sideways branches.
+    // Alternative threads.
     for (const alt of node.alternativeIds) {
-      lines.push(`${childPrefix}  ↳ alt: ${alt}`);
+      lines.push(`${below}↳ alt: ${alt}`);
     }
 
     const children = node.childIds.map((id) => byId.get(id)).filter((c): c is HypothesisNode => !!c);
-    children.forEach((child, i) => {
-      walk(child, childPrefix, i === children.length - 1, false, visited);
-    });
+    if (children.length > 0) lines.push(`${below}│`);
+    children.forEach((child, i) => walk(child, below, i === children.length - 1, false, visited));
   };
 
   roots.forEach((root, i) => {
     walk(root, "", true, true, new Set());
-    // Blank separator between parallel trees (not after the last).
     if (i < roots.length - 1) lines.push("");
   });
 

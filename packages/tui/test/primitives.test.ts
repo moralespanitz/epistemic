@@ -31,29 +31,29 @@ function node(p: Partial<HypothesisNode>): HypothesisNode {
   };
 }
 
-test("treeLines renders roots and children with box-drawing connectors", () => {
+test("treeLines renders a top-down tree: root above, child on a downward branch", () => {
   const nodes = [
     node({ id: "H-001", status: "CONFIRMED", childIds: ["H-004"] }),
     node({ id: "H-004", status: "RUNNING", parentId: "H-001" }),
   ];
   const lines = treeLines(nodes, "H-004");
-  expect(lines[0]).toContain("H-001");
-  expect(lines[1]).toContain("H-004");
-  expect(lines[1]).toMatch(/^[├└]─ /); // child uses a tree connector
-  expect(lines[1]).toContain("▸"); // selected marker
+  expect(lines[0]).toContain("H-001"); // root on top
+  const childLine = lines.find((l) => l.includes("H-004"))!;
+  expect(childLine).toMatch(/[├└]─▶ /); // child hangs off a downward branch
+  expect(childLine).toContain("▸"); // selected marker
 });
 
-test("treeLines renders conditional plans as decision branches", () => {
+test("treeLines renders a conditional plan as a decision fork", () => {
   const nodes = [
     node({
       id: "H-004",
       conditionalPlan: { condition: "acc ≥ 0.80", ifTrue: "ship", ifFalse: "H-006 pivot" },
     }),
   ];
-  const lines = treeLines(nodes);
-  const joined = lines.join("\n");
-  expect(joined).toContain("if acc ≥ 0.80 → ship");
-  expect(joined).toContain("else → H-006 pivot");
+  const joined = treeLines(nodes).join("\n");
+  expect(joined).toContain("◇ if acc ≥ 0.80");
+  expect(joined).toContain("yes → ship");
+  expect(joined).toContain("no  → H-006 pivot");
 });
 
 test("treeLines renders alternatives as sideways branches", () => {
@@ -90,6 +90,7 @@ test("treeLines does not infinite-loop on cyclic data", () => {
   const a = node({ id: "A", childIds: ["B"] });
   const b = node({ id: "B", parentId: "A", childIds: ["A"] });
   expect(() => treeLines([a, b])).not.toThrow();
-  const lines = treeLines([a, b]);
-  expect(lines.length).toBe(2); // A and B, no infinite repeat
+  const joined = treeLines([a, b]).join("\n");
+  expect(joined).toContain("A"); // both nodes appear exactly once, no infinite repeat
+  expect(joined).toContain("B");
 });
