@@ -62,6 +62,29 @@ test("typing /spawn and pressing enter spawns the selected experiment", async ()
   expect(d.runner.spawn).toHaveBeenCalledWith("H-001", "local");
 });
 
+test("typing /model with an id switches the agent model via controls", async () => {
+  const setModel = vi.fn();
+  const { stdin } = render(<App {...deps()} controls={{ setModel, getModel: () => undefined }} />);
+  await tick();
+  stdin.write("/model gpt-5.2");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  expect(setModel).toHaveBeenCalledWith("gpt-5.2");
+});
+
+test("a passthrough command (/commit) is forwarded to the agent", async () => {
+  const d = deps();
+  const { stdin } = render(<App {...d} />);
+  await tick();
+  stdin.write("/commit");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  expect(d.ask).toHaveBeenCalled();
+  expect(d.ask.mock.calls[0][0]).toBe("/commit");
+});
+
 test("a second message while busy is rejected (no cross-talk)", async () => {
   const d = deps();
   // ask that never resolves — keeps the app busy

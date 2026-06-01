@@ -23,10 +23,20 @@ export function buildPrompt(question: string, ctx: NodeContext | undefined): str
 export class AgentBridge {
   private bin: string;
   private baseArgs: string[];
+  private model?: string;
 
   constructor(private cwd: string, opts: AgentBridgeOptions = {}) {
     this.bin = opts.bin ?? "omp";
     this.baseArgs = opts.baseArgs ?? ["-p", "--continue"];
+  }
+
+  /** Switch the model passed to omp on subsequent turns (`--model <id>`). */
+  setModel(id: string | undefined): void {
+    this.model = id && id.trim() ? id.trim() : undefined;
+  }
+
+  getModel(): string | undefined {
+    return this.model;
   }
 
   /** Run one non-interactive agent turn. Streams stdout via onChunk; resolves with full text. */
@@ -36,6 +46,7 @@ export class AgentBridge {
     onChunk: (chunk: string) => void,
   ): Promise<string> {
     const prompt = buildPrompt(question, ctx);
+    const modelArgs = this.model ? ["--model", this.model] : [];
     return new Promise((resolve) => {
       let resolved = false;
       const done = (result: string) => {
@@ -47,7 +58,7 @@ export class AgentBridge {
 
       let proc;
       try {
-        proc = spawn(this.bin, [...this.baseArgs, prompt], { cwd: this.cwd });
+        proc = spawn(this.bin, [...this.baseArgs, ...modelArgs, prompt], { cwd: this.cwd });
       } catch {
         done("agent unavailable (failed to spawn)");
         return;

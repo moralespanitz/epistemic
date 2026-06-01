@@ -23,6 +23,10 @@ async function main() {
       subscribe={(cb) => { subscribers.add(cb); return () => subscribers.delete(cb); }}
       runner={runner}
       ask={(q, ctx, onChunk) => bridge.ask(q, ctx, onChunk)}
+      controls={{
+        setModel: (id) => bridge.setModel(id),
+        getModel: () => bridge.getModel(),
+      }}
     />,
   );
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, useApp, useInput } from "ink";
 import type { ChatMessage, HypothesisNode, LensName, ResearchWorld } from "../model/types.js";
 import type { NodeContext } from "../agent-bridge.js";
-import { parseSlash } from "../slash-commands.js";
+import { parseSlash, COMMANDS } from "../slash-commands.js";
 import { ChatView } from "./ChatView.js";
 import { LensMissions } from "./LensMissions.js";
 import { LensTree } from "./LensTree.js";
@@ -12,24 +12,31 @@ import { Header } from "./Header.js";
 import { PromptInput } from "./PromptInput.js";
 import { StatusFooter } from "./StatusFooter.js";
 
+export interface AgentControls {
+  setModel?: (id: string | undefined) => void;
+  getModel?: () => string | undefined;
+}
+
 export interface AppProps {
   initialWorld: ResearchWorld;
   subscribe: (cb: (w: ResearchWorld) => void) => () => void;
   runner: { spawn: (id: string, target: HypothesisNode["computeTarget"]) => Promise<void>; kill: (id: string) => void };
   ask: (question: string, ctx: NodeContext | undefined, onChunk: (c: string) => void) => Promise<string>;
+  controls?: AgentControls;
 }
 
-const HELP_TEXT = [
-  "Commands:",
-  "  /chat /tree /missions /focus  — switch the main view",
-  "  /spawn [id]   — run the selected (or named) experiment",
-  "  /kill [id]    — stop the selected (or named) experiment",
-  "  /review       — ask the agent for the cheapest disconfirming experiment",
-  "  /help /quit   — this help · exit",
-  "Plain text is sent to the agent. ↑↓ selects a hypothesis.",
-].join("\n");
+function helpText(): string {
+  const group = (kind: string) => COMMANDS.filter((c) => c.kind === kind).map((c) => `  /${c.name.padEnd(10)} ${c.description}`).join("\n");
+  return [
+    "Views", group("view"),
+    "Actions", group("action"),
+    "Forwarded to omp", group("passthrough"),
+    "",
+    "Plain text is sent to the agent. ↑↓ selects a hypothesis.",
+  ].join("\n");
+}
 
-export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
+export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps) {
   const { exit } = useApp();
   const [world, setWorld] = useState(initialWorld);
   const [lens, setLens] = useState<LensName>("chat");
@@ -75,10 +82,17 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
   const runSlash = (text: string): void => {
     const r = parseSlash(text);
     if (!r) return;
-    switch (r.kind) {
-      case "lens":
-        setLens(r.arg as LensName);
-        break;
+
+    if (r.kind === "unknown") { note(`unknown command: /${r.arg} — try /help`); return; }
+    if (r.kind === "view") { setLens(r.name as LensName); return; }
+    if (r.kind === "passthrough") {
+      // Forward the raw "/command args" to the omp agent as a turn.
+      void sendToAgent(text);
+      return;
+    }
+
+    // Cockpit-native actions.
+    switch (r.name) {
       case "spawn": {
         const node = r.arg ? nodes.find((n) => n.id === r.arg) : selected;
         if (node) {
@@ -96,19 +110,37 @@ export function App({ initialWorld, subscribe, runner, ask }: AppProps) {
         else note("no experiment to kill");
         break;
       }
+      case "model": {
+        if (r.arg) { controls?.setModel?.(r.arg); note(`model → ${r.arg}`); }
+        else note(`model: ${controls?.getModel?.() ?? "default"}`);
+        break;
+      }
+      case "clear":
+        setMessages([]);
+        setLens("chat");
+        break;
+      case "compact":
+        setMessages((prev) => {
+          const kept = prev.slice(-2);
+          return [{ role: "system" as const, text: `(compacted ${prev.length} earlier messages)`, id: nextId.current++ }, ...kept];
+        });
+        setLens("chat");
+        break;
+      case "cost": {
+        const perNode = nodes.map((n) => `${n.id}: $${n.spent.toFixed(2)} / $${n.costCap}`).join("\n  ");
+        note(`Spend\n  total $${world.totalSpent.toFixed(2)} / $${world.totalCap}\n  ${perNode || "(no hypotheses)"}`);
+        break;
+      }
       case "review":
         void sendToAgent(
           `Run a falsification review on hypothesis ${selected?.id ?? "(none selected)"}: "${selected?.claim ?? ""}". Give the single cheapest experiment that would most likely disconfirm it.`,
         );
         break;
       case "help":
-        note(HELP_TEXT);
+        note(helpText());
         break;
       case "quit":
         exit();
-        break;
-      case "unknown":
-        note(`unknown command: /${r.arg} — try /help`);
         break;
     }
   };

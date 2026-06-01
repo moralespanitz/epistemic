@@ -23,17 +23,26 @@ The box at the bottom is always focused. Two ways to use it:
   into the conversation.
 - **Type a `/command` and press Enter** → it runs an action.
 
+Type `/help` to see the full list. Commands mirror pi.dev / omp:
+
+**Views** — `/chat` (default) · `/tree` · `/missions` · `/focus`
+
+**Cockpit actions** (run natively):
 | Command | What it does |
 |---------|--------------|
-| `/chat` | Conversation view (default) |
-| `/tree` | Research tree — parallel trees, conditional plans, alternatives, killed branches |
-| `/missions` | Live grid of parallel experiments with cost/accuracy sparklines |
-| `/focus` | Deep view of the selected experiment |
+| `/model [id]` | Show or switch the agent model (`/model gpt-5.2`) |
 | `/spawn [id]` | Launch the selected (or named) experiment |
 | `/kill [id]` | Stop the selected (or named) experiment |
+| `/clear` | Clear the conversation |
+| `/compact` | Compact the conversation, keeping a short summary |
+| `/cost` | Show spend so far across hypotheses |
 | `/review` | Ask the agent for the cheapest disconfirming experiment |
-| `/help` | List commands |
-| `/quit` | Exit |
+| `/help` `/quit` | List commands · exit |
+
+**Forwarded to omp** — `/commit` `/branch` `/python` `/export` `/mcp` `/memory`
+`/agents` `/plan` `/goal` `/loop` `/fast` `/todo` `/session` `/share` `/settings`
+are sent to the agent as a turn (they're omp session features). While the cockpit
+runs omp in print mode, these reach the agent rather than a live omp session.
 
 Other keys: `↑` / `↓` select a hypothesis (the Inspector on the right follows
 the selection), `Ctrl+C` quits.
