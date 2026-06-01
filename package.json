@@ -9,6 +9,11 @@
   "bin": {
     "epistemic": "./bin/epistemic.mjs"
   },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:tui": "bash test/tui-e2e.sh"
+  },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-agent-core": "*",

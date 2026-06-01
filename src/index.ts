@@ -12,6 +12,7 @@ import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend 
 import { refreshEpistemicWidget } from "./tui/widget.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
+import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "./research/monitor-nav.js";
 import { loadFleet, type Fleet } from "./monitor/fleet.js";
 
 let initialized = false;
@@ -80,21 +81,18 @@ function rerenderMonitor(ctx: any) {
   ctx.ui.setWidget?.(TREE_KEY, renderMonitor(lastFleet, monitorMode, monitorIdx), { placement: "belowEditor" });
 }
 
+const ACTION_LABELS: Record<string, ActionLabel> = {
+  "chat about it": "chat", "approve (ship)": "approve", "reject (kill)": "reject", "modify (refine/pivot)": "modify",
+};
+
 /** Open the action menu for the selected hypothesis (chat / approve / reject / modify). */
 async function openSelected(ctx: any) {
   const entry = lastFleet?.entries[monitorIdx];
   if (!entry) return;
-  const action = await ctx.ui.select?.(`${entry.id} — action`, [
-    "chat about it", "approve (ship)", "reject (kill)", "modify (refine/pivot)",
-  ]);
+  const choice = await ctx.ui.select?.(`${entry.id} — action`, Object.keys(ACTION_LABELS));
+  const action = choice && ACTION_LABELS[choice];
   if (!action) return;
-  const prompts: Record<string, string> = {
-    "chat about it": `Tell me about hypothesis ${entry.id}: "${entry.claim}". Current status and next step?`,
-    "approve (ship)": `Approve hypothesis ${entry.id} ("${entry.claim}"). Run kill-or-ship: if all gates pass, SHIP and run verification-before-publication; else list blockers.`,
-    "reject (kill)": `Reject hypothesis ${entry.id} ("${entry.claim}"). Run kill-or-ship with a KILL decision; record the lesson.`,
-    "modify (refine/pivot)": `Modify hypothesis ${entry.id} ("${entry.claim}"). Propose a REFINE or PIVOT per kill-or-ship.`,
-  };
-  const prompt = prompts[action];
+  const prompt = actionPrompt(action, entry);
   if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
   else ctx.ui.notify?.(prompt, "info");
 }
@@ -102,15 +100,13 @@ async function openSelected(ctx: any) {
 /** Arrow-key navigation while monitor mode is active. Returns true if consumed. */
 function handleMonitorKey(ctx: any, data: string): boolean {
   if (currentView !== "monitor" || !lastFleet) return false;
-  const n = lastFleet.entries.length;
-  switch (data) {
-    case "\x1b[A": monitorIdx = Math.max(0, monitorIdx - 1); rerenderMonitor(ctx); return true; // up
-    case "\x1b[B": monitorIdx = Math.min(Math.max(n - 1, 0), monitorIdx + 1); rerenderMonitor(ctx); return true; // down
-    case "\x1b[C": monitorMode = "detail"; rerenderMonitor(ctx); return true; // right → detail
-    case "\x1b[D": monitorMode = "tree"; rerenderMonitor(ctx); return true; // left → tree
-    case "\r": case "\n": void openSelected(ctx); return true; // enter → actions
-    default: return false;
-  }
+  const result = reduceNav({ mode: monitorMode, idx: monitorIdx }, parseKey(data), lastFleet.entries.length);
+  if (!result.handled) return false;
+  monitorMode = result.state.mode;
+  monitorIdx = result.state.idx;
+  if (result.openAction) void openSelected(ctx);
+  else rerenderMonitor(ctx);
+  return true;
 }
 
 export default async function (pi: ExtensionAPI) {
