@@ -15,22 +15,34 @@ npm test        # tsx --test test/*.test.ts
 Covers: arrow-key parsing, selection bounds, view switching, the
 approve/reject/modify prompt composition, and both monitor interfaces.
 
-## 2. End-to-end TUI tests (drive the real app)
+## 2. Agent-driven TUI tests (drive the real app)
 
-A TUI is tested the way `agent-browser` tests a webpage: launch it in a real
-terminal, **send keystrokes**, and **read/assert the screen**. The bundled
-harness uses tmux:
+A TUI is tested the way `agent-browser` tests a webpage: launch it, **send
+keystrokes**, **read/assert the screen**. We ship a tiny driver
+(`test/tui-driver.mjs`) that does this over plain `child_process` pipes — no
+pty, no tmux — so it runs anywhere, including CI:
 
 ```bash
-brew install tmux      # one-time
-npm run test:tui       # test/tui-e2e.sh
+npx tsx --test test/tui-drive.test.ts
 ```
 
-It launches `epistemic`, opens `/monitor`, sends `Down`/`Right`/`Left`, and
-asserts the screen reacts.
+It launches the real `epistemic monitor`, sends `↓ → ←`, asserts the screen
+moves between the tree and detail interfaces, then `q` and asserts a clean exit.
+The monitor is read-only (no auth), so it runs fully headless.
 
-> Note: the harness needs a real PTY. It won't run in restricted sandboxes, and
-> `node-pty` does not yet support Node 25 — so on Node 25, use the tmux path.
+The driver is reusable for ad-hoc agent control:
+
+```js
+import { launch } from "./test/tui-driver.mjs";
+const app = launch(process.execPath, ["--import", "tsx", "src/cli/epistemic.ts", "monitor"]);
+await app.waitFor("mission control");
+app.send("down", "right");          // navigate
+await app.waitFor("claim:");        // detail interface
+app.send("q");
+```
+
+There's also a tmux harness (`npm run test:tui`, needs `brew install tmux`) for
+driving the full chat-side TUI where a real PTY is wanted.
 
 ## "agent-browser for TUI" — published tools
 

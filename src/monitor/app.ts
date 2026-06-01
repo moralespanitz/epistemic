@@ -91,26 +91,26 @@ export async function runMonitorApp(cwd: string): Promise<void> {
     process.stdin.pause();
   };
 
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode?.(true);
-    process.stdin.resume();
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", async (data: string) => {
-      if (inAction) {
-        if (data === "\x1b") { inAction = false; }
-        else if (parseKey(data) === "up") actionIdx = Math.max(0, actionIdx - 1);
-        else if (parseKey(data) === "down") actionIdx = Math.min(ACTIONS.length - 1, actionIdx + 1);
-        else if (parseKey(data) === "enter") { await queueAction(ACTIONS[actionIdx].value); inAction = false; }
-        draw();
-        return;
-      }
-      if (data === "q" || data === "\x03") { stop = true; cleanup(); return; }
-      const res = reduceNav({ mode, idx }, parseKey(data), fleet.entries.length);
-      if (res.openAction) { inAction = true; actionIdx = 0; toast = ""; }
-      else { mode = res.state.mode; idx = res.state.idx; if (res.handled) toast = ""; }
+  // Read stdin whether it's a real TTY or a pipe — so a person OR an agent
+  // (writing keystrokes to stdin) can drive it. Raw mode only applies to a TTY.
+  if (process.stdin.isTTY) process.stdin.setRawMode?.(true);
+  process.stdin.resume();
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", async (data: string) => {
+    if (inAction) {
+      if (data === "\x1b") { inAction = false; }
+      else if (parseKey(data) === "up") actionIdx = Math.max(0, actionIdx - 1);
+      else if (parseKey(data) === "down") actionIdx = Math.min(ACTIONS.length - 1, actionIdx + 1);
+      else if (parseKey(data) === "enter") { await queueAction(ACTIONS[actionIdx].value); inAction = false; }
       draw();
-    });
-  }
+      return;
+    }
+    if (data === "q" || data === "\x03") { stop = true; cleanup(); process.exit(0); }
+    const res = reduceNav({ mode, idx }, parseKey(data), fleet.entries.length);
+    if (res.openAction) { inAction = true; actionIdx = 0; toast = ""; }
+    else { mode = res.state.mode; idx = res.state.idx; if (res.handled) toast = ""; }
+    draw();
+  });
 
   out.write(ALT_ON + HIDE);
   draw();
