@@ -26,7 +26,7 @@ const tick = () => new Promise((r) => setTimeout(r, 30));
 test("App starts on the chat view with a persistent input", () => {
   const { lastFrame } = render(<App {...deps()} />);
   expect(lastFrame()).toContain("CONVERSATION");
-  expect(lastFrame()).toContain("enter send");
+  expect(lastFrame()).toContain("type to chat");
 });
 
 test("typing /tree and pressing enter switches to the tree view", async () => {
@@ -71,6 +71,45 @@ test("typing /model with an id switches the agent model via controls", async () 
   stdin.write("\r");
   await tick();
   expect(setModel).toHaveBeenCalledWith("gpt-5.2");
+});
+
+test("pressing enter on a selected hypothesis enters it (drill-in)", async () => {
+  const { lastFrame, stdin } = render(<App {...deps()} />);
+  await tick();
+  stdin.write("\r"); // empty enter on selected H-001
+  await tick();
+  expect(lastFrame()).toContain("◆ H-001"); // NodeView header
+  expect(lastFrame()).toContain("/approve");
+});
+
+test("/approve while entered sends a scoped ship instruction to the agent", async () => {
+  const d = deps();
+  const { stdin } = render(<App {...d} />);
+  await tick();
+  stdin.write("\r"); // enter H-001
+  await tick();
+  stdin.write("/approve");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  expect(d.ask).toHaveBeenCalled();
+  const prompt = d.ask.mock.calls[0][0];
+  expect(prompt).toContain("Approve hypothesis H-001");
+  // context is scoped to the entered node
+  expect(d.ask.mock.calls[0][1]).toMatchObject({ id: "H-001" });
+});
+
+test("/back leaves the hypothesis view", async () => {
+  const { lastFrame, stdin } = render(<App {...deps()} />);
+  await tick();
+  stdin.write("\r"); // enter
+  await tick();
+  expect(lastFrame()).toContain("◆ H-001");
+  stdin.write("/back");
+  await tick();
+  stdin.write("\r");
+  await tick();
+  expect(lastFrame()).not.toContain("◆ H-001");
 });
 
 test("/model with no arg opens the picker; selecting sets the model", async () => {

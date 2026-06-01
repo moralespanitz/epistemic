@@ -47,6 +47,23 @@ runs omp in print mode, these reach the agent rather than a live omp session.
 Other keys: `↑` / `↓` select a hypothesis (the Inspector on the right follows
 the selection), `Ctrl+C` quits.
 
+## Drilling into a hypothesis (per-experiment workspace)
+
+Select a hypothesis with `↑↓` and press **Enter on an empty prompt** to *enter*
+it — like opening an agent thread. Inside, you get its details, an action bar,
+and a conversation scoped to that hypothesis:
+
+| In a hypothesis | What it does |
+|-----------------|--------------|
+| `/approve` | Ship it — runs kill-or-ship + verification via the agent |
+| `/reject [reason]` | Kill it — runs kill-or-ship KILL and records the lesson |
+| `/modify <what>` | Propose a refine/pivot |
+| type text | Chat with the agent, scoped to this hypothesis |
+| `/back` (or Esc) | Return to the tree |
+
+Each hypothesis keeps its own conversation thread, so you can move between
+experiments without losing context. `/open H-004` jumps straight in by id.
+
 ## Authoring the research tree
 
 The Tree view is built from `HYPOTHESES.md`. Add these optional fields under a

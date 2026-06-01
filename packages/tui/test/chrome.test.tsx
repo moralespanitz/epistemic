@@ -46,10 +46,16 @@ test("ChatView renders user and agent turns", () => {
 test("PromptInput shows the draft and chat hint", () => {
   const { lastFrame } = render(<PromptInput draft="hello world" busy={false} />);
   expect(lastFrame()).toContain("hello world");
-  expect(lastFrame()).toContain("enter send");
+  expect(lastFrame()).toContain("type to chat");
 });
 
 test("PromptInput shows the command hint when the draft is a slash command", () => {
   const { lastFrame } = render(<PromptInput draft="/sp" busy={false} />);
   expect(lastFrame()).toContain("/spawn");
+});
+
+test("PromptInput shows hypothesis actions when entered", () => {
+  const { lastFrame } = render(<PromptInput draft="" busy={false} entered="H-004" />);
+  expect(lastFrame()).toContain("in H-004");
+  expect(lastFrame()).toContain("/approve");
 });

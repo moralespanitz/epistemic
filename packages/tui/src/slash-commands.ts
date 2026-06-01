@@ -23,6 +23,13 @@ export const COMMANDS: CommandSpec[] = [
   { name: "missions", kind: "view", description: "Live grid of parallel experiments" },
   { name: "focus", kind: "view", description: "Deep view of the selected experiment" },
 
+  // ── per-hypothesis actions ──────────────────────────────
+  { name: "open", kind: "action", description: "Enter a hypothesis (/open H-004) — or ⏎ on a selected one" },
+  { name: "back", kind: "action", description: "Leave the hypothesis and return to the tree" },
+  { name: "approve", kind: "action", description: "Approve the hypothesis — ship via kill-or-ship" },
+  { name: "reject", kind: "action", description: "Reject/kill the hypothesis (/reject [reason])" },
+  { name: "modify", kind: "action", description: "Propose a change — refine or pivot (/modify <what>)" },
+
   // ── cockpit actions ─────────────────────────────────────
   { name: "model", kind: "action", description: "Show or switch the agent model (/model gpt-5.2)" },
   { name: "spawn", kind: "action", description: "Run the selected (or named) experiment" },
