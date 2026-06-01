@@ -1,13 +1,16 @@
 /**
- * epistemic — its own coding-agent TUI, built on pi's library.
+ * epistemic — pi.dev's real coding agent + the epistemic extension.
  *
- *   epistemic            → branded intro, then epistemic's own TUI (Chat ⇄ Monitor,
- *                          swap with Tab) driven by the real pi AgentSession
- *   epistemic monitor    → the full-screen monitor on its own
- *   epistemic --pi [...]  → fall back to pi's stock interactive agent + extension
+ *   epistemic            → branded intro, then pi's REAL interactive chat
+ *                          (full functionality: /model, markdown, tools, MCP, memory)
+ *                          with the epistemic extension loaded (gates, /monitor, /map)
+ *   epistemic monitor    → the full-screen interactive monitor on its own
+ *
+ * The chat is pi.dev, unchanged — epistemic is the extension on top, not a
+ * replacement. The extension loads via omp's discovery (.pi/settings.json).
  */
+import { main } from "@earendil-works/pi-coding-agent";
 import { playIntro } from "./intro.js";
-import { runEpistemicTui } from "../tui/app.js";
 import { runMonitorApp } from "../monitor/app.js";
 
 async function run() {
@@ -18,15 +21,11 @@ async function run() {
     return;
   }
 
-  if (args[0] === "--pi" || args.includes("-p") || args.includes("--print")) {
-    // Stock pi agent (e.g. for non-interactive/print mode), extension auto-loads.
-    const { main } = await import("@earendil-works/pi-coding-agent");
-    await main(args.filter((a) => a !== "--pi"));
-    return;
+  const interactive = !args.includes("-p") && !args.includes("--print");
+  if (interactive) {
+    try { await playIntro(); } catch { /* never block the agent on the intro */ }
   }
-
-  try { await playIntro(); } catch { /* never block on the intro */ }
-  await runEpistemicTui(process.cwd());
+  await main(args);
 }
 
 run().catch((err) => {

@@ -197,21 +197,28 @@ function registerResearchCommands(pi: any) {
     },
   });
 
-  // /monitor — the claude-agents-style live dashboard, inside the chat.
+  // /monitor — full interactive monitor that TAKES OVER the view (ctx.ui.custom),
+  // then returns to pi's real chat. Full height, native arrow nav, no truncation.
   pi.registerCommand?.("monitor", {
-    description: "Live mission-control dashboard (tree + experiments + burn). /monitor off to hide.",
-    handler: async (args: string, ctx: any) => {
-      if (args.trim() === "off") {
-        currentView = "off";
-        ctx.ui.setWidget?.(TREE_KEY, undefined);
-        ctx.ui.notify?.("Ξ monitor hidden — arrows back to the editor", "info");
+    description: "Open the interactive monitor (↑↓ select · → detail · enter actions · q back to chat)",
+    handler: async (_args: string, ctx: any) => {
+      if (!ctx.ui.custom) {
+        currentView = "monitor"; monitorMode = "tree"; monitorIdx = 0;
+        await renderCurrentView(ctx);
         return;
       }
-      currentView = "monitor";
-      monitorMode = "tree";
-      monitorIdx = 0;
-      await renderCurrentView(ctx);
-      ctx.ui.notify?.("Ξ monitor — ↑↓ select · → open · ← back · enter actions", "info");
+      const fleet = await loadFleet(ctx.cwd);
+      const { MonitorComponent, monitorActionPrompt } = await import("./research/monitor-component.js");
+      const result = await ctx.ui.custom((tui: any, _theme: any, _kb: any, done: any) =>
+        new MonitorComponent(ctx.cwd, fleet, tui, done),
+      );
+      if (result) {
+        const prompt = monitorActionPrompt(result, fleet);
+        if (prompt) {
+          if (ctx.ui.setEditorText) ctx.ui.setEditorText(prompt); // prefill chat for review
+          else ctx.ui.notify?.(prompt, "info");
+        }
+      }
     },
   });
 
