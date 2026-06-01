@@ -7,7 +7,6 @@
  * pi.dev + extensions, rebranded, not a replacement.
  */
 import { main } from "@earendil-works/pi-coding-agent";
-import epistemicExtension from "../index.js";
 import { playIntro } from "./intro.js";
 
 async function run() {
@@ -18,11 +17,10 @@ async function run() {
     try { await playIntro(); } catch { /* never block the agent on the intro */ }
   }
 
-  await main(args, {
-    // Inject epistemic as an in-process extension factory so it loads even when
-    // launched outside a repo that lists it in .pi/settings.json.
-    extensionFactories: [epistemicExtension as unknown as (pi: unknown) => void],
-  });
+  // The epistemic extension loads via omp's normal discovery (.pi/settings.json
+  // → package.json "pi".extensions → src/index.ts). Do NOT also inject it here,
+  // or it loads twice and its tools/commands conflict with themselves.
+  await main(args);
 }
 
 run().catch((err) => {

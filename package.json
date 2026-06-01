@@ -17,7 +17,7 @@
     "typebox": "*"
   },
   "pi": {
-    "extensions": ["./src/index.ts", "./src/extensions/huggingface.ts"],
+    "extensions": ["./src/index.ts"],
     "skills": ["./skills"]
   }
 }
