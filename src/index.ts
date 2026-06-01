@@ -42,7 +42,7 @@ async function renderCurrentView(ctx: any) {
   if (currentView === "monitor") {
     treeVisible = false;
     const fleet = await loadFleet(ctx.cwd);
-    ctx.ui.setWidget?.(TREE_KEY, renderMonitorWidget(fleet), { placement: "belowEditor" });
+    ctx.ui.setWidget?.(TREE_KEY, renderMonitorWidget(fleet, ctx.cwd), { placement: "belowEditor" });
     return;
   }
   if (currentView === "tree") {
