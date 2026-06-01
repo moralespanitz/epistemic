@@ -31,7 +31,7 @@ async function showTree(ctx: any) {
   const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
   const active = getActiveHypothesis(entries);
   const lines = renderResearchTree(entries, content, {}, active?.id);
-  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research map  (/map off to hide · alt+←/→ cycle views)", ...lines], { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research map  (/map off to hide · /view to cycle)", ...lines], { placement: "belowEditor" });
 }
 
 /** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
@@ -48,7 +48,7 @@ async function renderCurrentView(ctx: any) {
       const spent = await getHypothesisSpend(ctx.cwd, e.id);
       return `  ${e.id} [${e.status}]  $${spent.toFixed(2)} / $${e.costCap}`;
     }));
-    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (alt+←/→ cycle views)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
+    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (/view to cycle)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
     return;
   }
   ctx.ui.setWidget?.(TREE_KEY, undefined); // "off"
@@ -110,13 +110,10 @@ export default async function (pi: ExtensionAPI) {
  * live decision-tree widget and a hypothesis action menu.
  */
 function registerResearchCommands(pi: any) {
-  // View-switching: cycle research views (off → tree → cost). ctrl+b is free —
-  // pi reserves all arrow combos (ctrl/alt +←/→) for its tree fold.
-  pi.registerShortcut?.("ctrl+b", {
-    description: "epistemic: cycle research view (off → tree → cost)",
-    handler: async (ctx: any) => { cycleView(1); await renderCurrentView(ctx); },
-  });
-
+  // View-switching is via the /view command. We intentionally register NO
+  // keyboard shortcut: pi reserves nearly every modifier+key for its editor
+  // (emacs bindings) and tree navigation, so any global shortcut either
+  // conflicts or silently breaks an expected key.
   pi.registerCommand?.("view", {
     description: "Cycle epistemic research views (off → tree → cost)",
     handler: async (args: string, ctx: any) => {
