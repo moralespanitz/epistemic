@@ -1,0 +1,20 @@
+Ξ epistemic · mission control   [░░░░░░░░░░░░░░ N%] $N/$200   1 running · 1 shipped · 1 killed
+
+  ← back · enter actions · /monitor off to chat
+
+✓ H-001  [CONFIRMED]
+claim:     LoRA fine-tuning improves code-gen accuracy by ≥N%
+falsifier: If accuracy gain <N% on held-out set, claim is false
+target:    local    judge: gpt-4o temp=0 seed=42
+cost:      [░░░░░░░░░░░░░░ N%] $N / $50
+trials:    0/30    acc ··········
+
+press enter → chat / approve / reject / modify this hypothesis
+
+  ▸ action on H-001 — ↑↓ choose · enter confirm · esc cancel
+    ▸ chat about it
+      approve (ship)
+      reject (kill)
+      modify (refine/pivot)
+
+  q quit · ↑↓ select · → detail · ← tree · enter actions

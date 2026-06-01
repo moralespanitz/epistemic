@@ -1,0 +1,26 @@
+Ξ epistemic · mission control   [░░░░░░░░░░░░░░ N%] $N/$200   1 running · 1 shipped · 1 killed
+
+  ↑↓ select · → open · enter actions · /monitor off to chat
+
+▸ ✓ H-001  LoRA fine-tuning improves code-gen accur
+│
+├─▶ ● ▶ H-004  Scaling LoRA to 7B params doubles the ga
+│   │
+│   ◇ if acc ≥ 0.80
+│   ├─ yes → ship
+│   └─ no  → H-006 pivot
+└─▶ ● ☓ H-002  High learning rate speeds convergence wi
+
+● ○ H-100  Retrieval-augmented prompting beats fine
+│
+◇ if RAG ≥ FT
+├─ yes → adopt RAG
+└─ no  → hybrid H-101
+
+experiments
+  ▸✓ H-001    0/30    $0
+   ▶ H-004    18/30   $0     acc ▁▄█
+   ☓ H-002    0/30    $0
+   ○ H-100    0/30    $0
+
+  q quit · ↑↓ select · → detail · ← tree · enter actions

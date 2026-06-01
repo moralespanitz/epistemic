@@ -66,6 +66,27 @@ agent-tui screenshot                   # see the detail interface
 agent-tui press q ; agent-tui kill
 ```
 
+## 4. UX/UI validation & visual regression
+
+Catch UX failures and layout drift, driven through agent-tui:
+
+```bash
+npm run test:agent-tui:ux    # 24 checks: nav, edge cases, glitch/overflow detection, resize
+npm run test:snapshot        # visual regression vs saved baselines (test/snapshots/)
+```
+
+The UX suite asserts both that the right things render AND that failure markers
+(`truncated`, `undefined`, `NaN`, `Error`, width overflow, header scroll-off) do
+NOT appear. It already caught a real bug: the monitor scrolled its header off on
+short terminals — now it fits the viewport.
+
+Snapshot tests diff the normalized screen (ANSI stripped, `$`/`%` values masked)
+against `test/snapshots/*.txt`. To update baselines after an intended change:
+
+```bash
+UPDATE_SNAPSHOTS=1 npm run test:snapshot
+```
+
 ## "agent-browser for TUI" — published tools
 
 If you want an agent to drive/inspect the TUI interactively (not just scripted
