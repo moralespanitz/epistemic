@@ -110,15 +110,11 @@ export default async function (pi: ExtensionAPI) {
  * live decision-tree widget and a hypothesis action menu.
  */
 function registerResearchCommands(pi: any) {
-  // View-switching: cycle research views (off → tree → cost) like flipping
-  // between screens. alt+←/→ avoids pi's built-in ctrl+←/→ (tree fold).
-  pi.registerShortcut?.("alt+right", {
-    description: "epistemic: next research view",
+  // View-switching: cycle research views (off → tree → cost). ctrl+b is free —
+  // pi reserves all arrow combos (ctrl/alt +←/→) for its tree fold.
+  pi.registerShortcut?.("ctrl+b", {
+    description: "epistemic: cycle research view (off → tree → cost)",
     handler: async (ctx: any) => { cycleView(1); await renderCurrentView(ctx); },
-  });
-  pi.registerShortcut?.("alt+left", {
-    description: "epistemic: previous research view",
-    handler: async (ctx: any) => { cycleView(-1); await renderCurrentView(ctx); },
   });
 
   pi.registerCommand?.("view", {
