@@ -7,9 +7,17 @@
  */
 import { main } from "@earendil-works/pi-coding-agent";
 import { playIntro } from "./intro.js";
+import { runMonitorApp } from "../monitor/app.js";
 
 async function run() {
   const args = process.argv.slice(2);
+
+  // Full-screen interactive monitor (reliable, full-height, native arrow nav).
+  if (args[0] === "monitor") {
+    await runMonitorApp(process.cwd());
+    return;
+  }
+
   const interactive = !args.includes("-p") && !args.includes("--print");
   if (interactive) {
     try { await playIntro(); } catch { /* never block the agent on the intro */ }
