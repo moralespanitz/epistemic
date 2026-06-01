@@ -25,17 +25,26 @@ Execution can run locally, in Docker, or on Modal.
 | **State** | File-based ledger: `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `experiments/{id}/`. |
 | **Tools** | HF dataset metadata, AlphaXiv paper search, cross-run lessons. |
 
-### Research views (inside omp)
+### The `epistemic` command
+
+```
+epistemic            # branded intro, then the REAL pi/omp agent + epistemic extension
+epistemic monitor    # live mission-control dashboard (read-only companion)
+epistemic dash       # split terminal: real chat (left) + live monitor (right) — tmux
+```
+
+### Research views (inside the chat)
 
 Author hypotheses in `HYPOTHESES.md` with optional `- **Parent:** <id>` and
 `- **Decision:** <cond> → <ifTrue> | else → <ifFalse>` fields, then:
 
 ```
-/tree          # show the decision tree below the editor (stays live; /tree off to hide)
+/map           # show the decision tree below the editor (stays live; /map off to hide)
+/view          # cycle research views (off → tree → cost)
 /hypothesis    # pick a hypothesis → chat / approve (ship) / reject (kill) / modify (refine|pivot)
 ```
 
-The tree renders top-down with decision forks:
+The decision tree renders top-down with forks:
 
 ```
 ● ✓ H-001  LoRA fine-tuning improves code-gen…
@@ -46,6 +55,27 @@ The tree renders top-down with decision forks:
 │   └─ no  → H-006 pivot
 └─▶ ☓ H-002  High learning rate…
 ```
+
+### `epistemic dash` — the split-terminal cockpit
+
+A tmux layout: the real pi/omp chat on the left, the live monitor on the right.
+The monitor is mission control — research map + experiments with live cost /
+accuracy sparklines + fleet burn — refreshing as the agent works:
+
+```
+ Ξ EPISTEMIC · mission control
+  burn $34.00 / $210  ████░░░░░░ 16%   2 running · 1 shipped · 1 killed
+
+ RESEARCH MAP                          EXPERIMENTS
+ ● ✓ H-001  LoRA fine-tuning…          ✓ H-001   30/30  $20  ▁▂▃▄▅
+ ├─▶ ▶ H-004  Scaling to 7B…           ▶ H-004   18/30  $12  ▃▄▅▆█
+ │   ◇ if acc ≥ 0.80 → ship            ☓ H-002   12/30  $8   ▅▄▃
+ └─▶ ☓ H-002  High learning rate…
+```
+
+Spawn more chat panes any time with tmux's split keys (`Ctrl-b "` / `Ctrl-b %`)
+for parallel agent sessions next to the live monitor — the cockpit feel, with
+the real chat intact.
 
 ## The Pipeline
 
