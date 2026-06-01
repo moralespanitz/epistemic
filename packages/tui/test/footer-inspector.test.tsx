@@ -2,8 +2,8 @@ import { expect, test } from "vitest";
 import { render } from "ink-testing-library";
 import React from "react";
 import { StatusFooter } from "../src/ui/StatusFooter.js";
-import { Inspector } from "../src/ui/Inspector.js";
-import type { HypothesisNode, ResearchWorld } from "../src/model/types.js";
+import { TabBar } from "../src/ui/TabBar.js";
+import type { ResearchWorld } from "../src/model/types.js";
 
 const world: ResearchWorld = {
   nodes: [], runs: [
@@ -20,18 +20,17 @@ test("StatusFooter shows fleet burn and running count", () => {
   expect(lastFrame()).toContain("1 running");
 });
 
-test("Inspector renders the selected node detail", () => {
-  const node: HypothesisNode = {
-    id: "H-004", claim: "scale to 7B", status: "RUNNING", computeTarget: "local",
-    costCap: 80, spent: 12, childIds: [], alternativeIds: ["qlora"],
-  };
-  const { lastFrame } = render(<Inspector node={node} />);
-  expect(lastFrame()).toContain("H-004");
-  expect(lastFrame()).toContain("scale to 7B");
-  expect(lastFrame()).toContain("qlora");
+test("TabBar lists the views and a switch hint", () => {
+  const { lastFrame } = render(<TabBar active="tree" />);
+  const frame = lastFrame() ?? "";
+  expect(frame).toContain("Chat");
+  expect(frame).toContain("Tree");
+  expect(frame).toContain("Missions");
+  expect(frame).toContain("Focus");
+  expect(frame).toContain("switch view");
 });
 
-test("Inspector shows placeholder when nothing selected", () => {
-  const { lastFrame } = render(<Inspector node={undefined} />);
-  expect(lastFrame()).toContain("nothing selected");
+test("TabBar shows the entered hypothesis instead of the switch hint", () => {
+  const { lastFrame } = render(<TabBar active="tree" entered="H-004" />);
+  expect(lastFrame()).toContain("H-004");
 });

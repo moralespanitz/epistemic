@@ -73,6 +73,22 @@ test("typing /model with an id switches the agent model via controls", async () 
   expect(setModel).toHaveBeenCalledWith("gpt-5.2");
 });
 
+test("right arrow switches to the next view (chat → tree)", async () => {
+  const { lastFrame, stdin } = render(<App {...deps()} />);
+  await tick();
+  stdin.write("\x1B[C"); // right arrow
+  await tick();
+  expect(lastFrame()).toContain("RESEARCH TREE");
+});
+
+test("left arrow wraps to the last view (chat → focus)", async () => {
+  const { lastFrame, stdin } = render(<App {...deps()} />);
+  await tick();
+  stdin.write("\x1B[D"); // left arrow
+  await tick();
+  expect(lastFrame()).toContain("FOCUS");
+});
+
 test("pressing enter on a selected hypothesis enters it (drill-in)", async () => {
   const { lastFrame, stdin } = render(<App {...deps()} />);
   await tick();

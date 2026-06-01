@@ -17,12 +17,21 @@ export function LensFocus({ world, selectedId }: { world: ResearchWorld; selecte
   const lastAcc = run.accSeries[run.accSeries.length - 1];
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Text color="yellow">⊙ FOCUS — {run.id}</Text>
+      <Text color="yellow">⊙ FOCUS — {run.id} <Text dimColor>{node.status}</Text></Text>
       <Text>{node.claim}</Text>
       <Text dimColor>status {run.status} · target {node.computeTarget}</Text>
       <Text>trials {run.trialsDone}/{run.trialsTotal}</Text>
       <Text color="green">cost {sparkline(run.costSeries)} {costBar(run.spent, run.costCap, 10)}</Text>
       <Text color="yellow">acc  {sparkline(run.accSeries)} {lastAcc !== undefined ? lastAcc.toFixed(2) : "—"}</Text>
+      {node.conditionalPlan && (
+        <Text color="yellow">
+          decision: if {node.conditionalPlan.condition} → {node.conditionalPlan.ifTrue} · else → {node.conditionalPlan.ifFalse}
+        </Text>
+      )}
+      {node.childIds.length > 0 && <Text dimColor>children: {node.childIds.join(", ")}</Text>}
+      {node.alternativeIds.length > 0 && <Text dimColor>alternatives: {node.alternativeIds.join(", ")}</Text>}
+      {node.killReason && <Text color="red">killed: {node.killReason}</Text>}
+      <Box marginTop={1}><Text dimColor>⏎ enter this hypothesis · /approve /reject /modify</Text></Box>
     </Box>
   );
 }

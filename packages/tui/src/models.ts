@@ -7,13 +7,16 @@ const HEADER_TOKENS = new Set(["canonical", "selected", "variants", "context", "
  * (the first column — the value `--model` accepts).
  */
 export function parseModels(text: string): string[] {
+  const seen = new Set<string>();
   const models: string[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
-    if (/^canonical models/i.test(line.trim())) continue; // section title
+    if (/models$/i.test(line.trim())) continue; // section titles like "Canonical models"
     const m = line.match(/^(\S+)\s+\S/); // first token followed by another column
     const id = m?.[1];
     if (!id || HEADER_TOKENS.has(id.toLowerCase())) continue;
+    if (seen.has(id)) continue; // dedupe — the catalog repeats some ids across sections
+    seen.add(id);
     models.push(id);
   }
   return models;

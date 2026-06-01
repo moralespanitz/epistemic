@@ -27,7 +27,7 @@ export function ModelPicker({ items, query, index, loading, current }: ModelPick
       {visible.map((m, i) => {
         const selected = start + i === index;
         return (
-          <Text key={m} color={selected ? "black" : undefined} backgroundColor={selected ? "cyan" : undefined}>
+          <Text key={`${m}-${start + i}`} color={selected ? "black" : undefined} backgroundColor={selected ? "cyan" : undefined}>
             {selected ? "▸ " : "  "}{m}
           </Text>
         );

@@ -9,8 +9,8 @@ import { NodeView } from "./NodeView.js";
 import { LensMissions } from "./LensMissions.js";
 import { LensTree } from "./LensTree.js";
 import { LensFocus } from "./LensFocus.js";
-import { Inspector } from "./Inspector.js";
 import { Header } from "./Header.js";
+import { TabBar, VIEWS } from "./TabBar.js";
 import { PromptInput } from "./PromptInput.js";
 import { StatusFooter } from "./StatusFooter.js";
 
@@ -121,6 +121,16 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
     setEntered(id);
     const idx = nodes.findIndex((n) => n.id === id);
     if (idx >= 0) setSelectedIdx(idx);
+  };
+
+  // ←/→ move between full-screen views (leaving any entered hypothesis).
+  const cycleView = (dir: number) => {
+    setEntered(null);
+    setLens((l) => {
+      const order = VIEWS.map((v) => v.name);
+      const i = order.indexOf(l);
+      return order[(i + dir + order.length) % order.length];
+    });
   };
 
   const runSlash = (text: string): void => {
@@ -260,6 +270,8 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
       return;
     }
     if (key.backspace || key.delete) { setDraft((d) => d.slice(0, -1)); return; }
+    if (key.leftArrow) { cycleView(-1); return; }
+    if (key.rightArrow) { cycleView(1); return; }
     if (key.upArrow) { setSelectedIdx((i) => Math.max(0, i - 1)); return; }
     if (key.downArrow) { setSelectedIdx((i) => Math.min(Math.max(nodes.length - 1, 0), i + 1)); return; }
     if (input && !key.ctrl && !key.meta) setDraft((d) => d + input);
@@ -289,10 +301,8 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
   return (
     <Box flexDirection="column">
       <Header world={world} />
-      <Box>
-        <Box flexDirection="column" flexGrow={1}>{mainPane()}</Box>
-        <Inspector node={focusNode} world={world} />
-      </Box>
+      {!picker && <TabBar active={lens} entered={entered ?? undefined} />}
+      <Box flexDirection="column" flexGrow={1}>{mainPane()}</Box>
       {!picker && <PromptInput draft={draft} busy={busy} entered={entered ?? undefined} />}
       <StatusFooter world={world} lens={entered ? `▸${entered}` : lens} />
     </Box>
