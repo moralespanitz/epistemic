@@ -22,7 +22,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "test:tui": "bash test/tui-e2e.sh",
-    "test:agent-tui": "bash test/agent-tui-validate.sh"
+    "test:agent-tui": "bash test/agent-tui-validate.sh",
+    "test:agent-tui:ux": "bash test/agent-tui-ux.sh"
   },
   "peerDependencies": {
     "@earendil-works/pi-agent-core": "*",

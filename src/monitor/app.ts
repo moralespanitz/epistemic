@@ -13,6 +13,7 @@
 import { spawn } from "node:child_process";
 import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import { loadFleet, type Fleet } from "./fleet.js";
 import { renderMonitor } from "../research/monitor.js";
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "../research/monitor-nav.js";
@@ -69,7 +70,13 @@ export async function runMonitorApp(cwd: string): Promise<void> {
     }
     lines.push("");
     lines.push(color.dim(toast || "  q quit · ↑↓ select · → detail · ← tree · enter actions"));
-    out.write(HOME + lines.join("\n"));
+    const w = out.columns ?? 100;
+    const h = out.rows ?? 40;
+    let view = lines.map((l) => truncateToWidth(l, w));
+    // Fit the viewport: keep the header (top) and the hint/footer (bottom),
+    // trim the middle, so nothing scrolls the header off a short terminal.
+    if (view.length > h) view = [...view.slice(0, h - 1), view[view.length - 1]];
+    out.write(HOME + view.join("\n"));
   };
 
   const queueAction = async (value: ActionLabel) => {
@@ -114,6 +121,9 @@ export async function runMonitorApp(cwd: string): Promise<void> {
 
   out.write(ALT_ON + HIDE);
   draw();
+  // Redraw immediately on terminal resize.
+  const onResize = () => { if (!stop) draw(); };
+  out.on("resize", onResize);
   // Live refresh.
   const timer = setInterval(async () => {
     if (stop) { clearInterval(timer); return; }
@@ -123,7 +133,7 @@ export async function runMonitorApp(cwd: string): Promise<void> {
 
   // Resolve when the user quits.
   await new Promise<void>((resolve) => {
-    const check = setInterval(() => { if (stop) { clearInterval(check); clearInterval(timer); resolve(); } }, 100);
+    const check = setInterval(() => { if (stop) { clearInterval(check); clearInterval(timer); out.off("resize", onResize); resolve(); } }, 100);
   });
 }
 
