@@ -44,6 +44,28 @@ app.send("q");
 There's also a tmux harness (`npm run test:tui`, needs `brew install tmux`) for
 driving the full chat-side TUI where a real PTY is wanted.
 
+## 3. Validate with agent-tui (the agent-browser for TUI)
+
+[agent-tui](https://github.com/pproenca/agent-tui) drives the TUI through a real
+PTY (Rust — works on Node 25, unlike node-pty). Verified working against the
+monitor:
+
+```bash
+npm i -g agent-tui          # one-time
+npm run test:agent-tui      # test/agent-tui-validate.sh → 5/5 pass
+```
+
+It launches `epistemic monitor`, screenshots, presses `ArrowDown`/`ArrowRight`/
+`ArrowLeft`, and asserts the detail interface and tree appear. Manual driving:
+
+```bash
+agent-tui run --cwd "$PWD" -- node --import tsx src/cli/epistemic.ts monitor
+agent-tui wait "mission control"
+agent-tui press ArrowDown ArrowRight   # navigate into a hypothesis
+agent-tui screenshot                   # see the detail interface
+agent-tui press q ; agent-tui kill
+```
+
 ## "agent-browser for TUI" — published tools
 
 If you want an agent to drive/inspect the TUI interactively (not just scripted
