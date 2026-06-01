@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseKey, reduceNav, actionPrompt } from "../src/research/monitor-nav.js";
 import { renderMonitor } from "../src/research/monitor.js";
 import { fitWidth } from "../src/tui/widget.js";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Fleet } from "../src/monitor/fleet.js";
 import type { HypothesisEntry } from "../src/state/repo.js";
 
@@ -93,7 +94,8 @@ test("fitWidth clamps every line to the terminal width", () => {
   const wide = "Ξ epistemic  ·  " + "x".repeat(300);
   const limit = Math.max(20, (process.stdout.columns ?? 80) - 2);
   for (const line of fitWidth([wide, "short", "y".repeat(500)])) {
-    assert.ok([...line].length <= limit, `line length ${[...line].length} exceeds ${limit}`);
+    // pi crashes on visible width > terminal — assert visible width, not code points.
+    assert.ok(visibleWidth(line) <= limit, `visible width ${visibleWidth(line)} exceeds ${limit}`);
   }
 });
 
