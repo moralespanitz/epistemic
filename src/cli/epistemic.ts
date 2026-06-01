@@ -16,12 +16,19 @@ import epistemicExtension from "../index.js";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
 
+const DEFAULT_MODEL = "deepseek-v4-pro"; // openrouter — avoids Claude subscription billing
+
 async function run() {
   const args = process.argv.slice(2);
 
   if (args[0] === "monitor") {
     await runMonitorApp(process.cwd());
     return;
+  }
+
+  // Default to openrouter deepseek-v4-pro unless the user picks a model.
+  if (!args.includes("--model") && !args.includes("-m")) {
+    args.push("--model", DEFAULT_MODEL);
   }
 
   const interactive = !args.includes("-p") && !args.includes("--print");

@@ -6,5 +6,7 @@
     ".pi/extensions/claude-auth/index.ts"
   ],
   "quietStartup": true,
-  "theme": "epistemic"
+  "theme": "epistemic",
+  "defaultProvider": "openrouter",
+  "defaultModel": "deepseek-v4-pro"
 }
