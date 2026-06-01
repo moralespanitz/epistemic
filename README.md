@@ -25,57 +25,44 @@ Execution can run locally, in Docker, or on Modal.
 | **State** | File-based ledger: `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `experiments/{id}/`. |
 | **Tools** | HF dataset metadata, AlphaXiv paper search, cross-run lessons. |
 
-### The `epistemic` command
+### One command — `epistemic`
 
 ```
-epistemic            # branded intro, then the REAL pi/omp agent + epistemic extension
-epistemic monitor    # live mission-control dashboard (read-only companion)
-epistemic dash       # split terminal: real chat (left) + live monitor (right) — tmux
+epistemic       # branded intro → the REAL pi/omp agent + epistemic extension
 ```
 
-### Research views (inside the chat)
-
-Author hypotheses in `HYPOTHESES.md` with optional `- **Parent:** <id>` and
-`- **Decision:** <cond> → <ifTrue> | else → <ifFalse>` fields, then:
+Everything else lives **inside the chat** as commands — no separate binaries.
+Like `claude agents`, you flip to a live dashboard and back without leaving:
 
 ```
-/map           # show the decision tree below the editor (stays live; /map off to hide)
-/view          # cycle research views (off → tree → cost)
+/monitor       # live mission-control dashboard (tree + experiments + burn); /monitor off to return
+/map           # just the decision tree below the editor; /map off to hide
+/view          # cycle views (off → monitor → tree → cost)
 /hypothesis    # pick a hypothesis → chat / approve (ship) / reject (kill) / modify (refine|pivot)
 ```
 
-The decision tree renders top-down with forks:
+`/monitor` shows the dashboard as a live widget that refreshes while you work —
+research map + experiments with live cost/accuracy sparklines + fleet burn:
 
 ```
+Ξ epistemic · mission control   [████░░░░░░ 16%] $34/$210   2 running · 1 shipped · 1 killed   (/monitor off · /view)
+
 ● ✓ H-001  LoRA fine-tuning improves code-gen…
-│
 ├─▶ ▶ H-004  Scaling LoRA to 7B…
 │   ◇ if acc ≥ 0.80
 │   ├─ yes → ship
 │   └─ no  → H-006 pivot
 └─▶ ☓ H-002  High learning rate…
+
+experiments
+  ✓ H-001   30/30  $20
+  ▶ H-004   18/30  $12  acc ▃▄▅▆█
+  ☓ H-002   12/30  $8
 ```
 
-### `epistemic dash` — the split-terminal cockpit
-
-A tmux layout: the real pi/omp chat on the left, the live monitor on the right.
-The monitor is mission control — research map + experiments with live cost /
-accuracy sparklines + fleet burn — refreshing as the agent works:
-
-```
- Ξ EPISTEMIC · mission control
-  burn $34.00 / $210  ████░░░░░░ 16%   2 running · 1 shipped · 1 killed
-
- RESEARCH MAP                          EXPERIMENTS
- ● ✓ H-001  LoRA fine-tuning…          ✓ H-001   30/30  $20  ▁▂▃▄▅
- ├─▶ ▶ H-004  Scaling to 7B…           ▶ H-004   18/30  $12  ▃▄▅▆█
- │   ◇ if acc ≥ 0.80 → ship            ☓ H-002   12/30  $8   ▅▄▃
- └─▶ ☓ H-002  High learning rate…
-```
-
-Spawn more chat panes any time with tmux's split keys (`Ctrl-b "` / `Ctrl-b %`)
-for parallel agent sessions next to the live monitor — the cockpit feel, with
-the real chat intact.
+The chat stays exactly pi.dev; the dashboard is a read-only companion you summon
+from inside it. Want true parallel sessions side-by-side? Run `epistemic` in a
+tmux/zellij split — the chat and a second session live in adjacent panes.
 
 ## The Pipeline
 
