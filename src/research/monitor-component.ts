@@ -24,8 +24,8 @@ const ACTIONS: { label: string; value: ActionLabel }[] = [
 const ESC = "\x1b[";
 const R = `${ESC}0m`;
 const dim = (s: string) => `${ESC}2m${s}${R}`;
-const cyan = (s: string) => `${ESC}38;5;51m${s}${R}`;
-const magenta = (s: string) => `${ESC}1;38;5;213m${s}${R}`;
+const cyan = (s: string) => `${ESC}1;38;5;226m${s}${R}`;    // bright yellow — selection
+const magenta = (s: string) => `${ESC}1;38;5;220m${s}${R}`; // yellow — header/brand
 
 export class MonitorComponent implements Component {
   private mode: MonitorMode = "tree";

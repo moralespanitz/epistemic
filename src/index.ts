@@ -8,7 +8,7 @@ import { registerClaimInterceptor } from "./gates/claim-interceptor.js";
 import { registerKillCriteriaGate } from "./gates/kill-criteria.js";
 import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
-import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "./state/repo.js";
+import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons } from "./state/repo.js";
 import { refreshEpistemicWidget } from "./tui/widget.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
@@ -219,6 +219,18 @@ function registerResearchCommands(pi: any) {
           else ctx.ui.notify?.(prompt, "info");
         }
       }
+    },
+  });
+
+  // /lessons — cross-run memory (every kill/pivot/overrun, surfaced for reuse).
+  // Inspired by omp's persistent memory; epistemic-native via .epistemic/lessons.jsonl.
+  pi.registerCommand?.("lessons", {
+    description: "Show cross-run research lessons (past kills, pivots, overruns)",
+    handler: async (_args: string, ctx: any) => {
+      const lessons = await loadLessons(ctx.cwd);
+      const text = summarizeLessons(lessons);
+      ctx.ui.setWidget?.(TREE_KEY, ["Ξ lessons  (/lessons off to hide)", ...text.split("\n")], { placement: "belowEditor" });
+      if (ctx.ui.notify) ctx.ui.notify("Ξ cross-run lessons shown below", "info");
     },
   });
 

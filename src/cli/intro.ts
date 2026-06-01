@@ -11,10 +11,11 @@ const HIDE = `${ESC}?25l`, SHOW = `${ESC}?25h`;
 const CLEAR = `${ESC}2J`;
 const at = (row: number, col: number) => `${ESC}${row};${col}H`;
 
-const magenta = (s: string) => `${ESC}1;38;5;213m${s}${R}`;
-const magDim = (s: string) => `${ESC}38;5;132m${s}${R}`;
+// Research yellow is the primary accent.
+const magenta = (s: string) => `${ESC}1;38;5;220m${s}${R}`; // yellow (brand)
+const magDim = (s: string) => `${ESC}38;5;136m${s}${R}`;    // dim yellow (pulse)
 const white = (s: string) => `${ESC}1;97m${s}${R}`;
-const cyan = (s: string) => `${ESC}38;5;51m${s}${R}`;
+const cyan = (s: string) => `${ESC}38;5;221m${s}${R}`;      // soft yellow (tagline)
 const dim = (s: string) => `${ESC}2m${s}${R}`;
 
 const NAME = "epistemic";

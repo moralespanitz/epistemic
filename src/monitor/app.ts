@@ -24,10 +24,10 @@ const HIDE = `${ESC}?25l`, SHOW = `${ESC}?25h`;
 const HOME = `${ESC}H${ESC}2J`;
 const R = `${ESC}0m`;
 const color = {
-  magenta: (s: string) => `${ESC}1;38;5;213m${s}${R}`,
-  cyan: (s: string) => `${ESC}38;5;51m${s}${R}`,
-  green: (s: string) => `${ESC}38;5;42m${s}${R}`,
-  red: (s: string) => `${ESC}38;5;203m${s}${R}`,
+  magenta: (s: string) => `${ESC}1;38;5;220m${s}${R}`, // yellow — brand/header
+  cyan: (s: string) => `${ESC}1;38;5;226m${s}${R}`,    // bright yellow — selection
+  green: (s: string) => `${ESC}38;5;42m${s}${R}`,      // semantic: confirmed/ok
+  red: (s: string) => `${ESC}38;5;203m${s}${R}`,       // semantic: killed/over
   dim: (s: string) => `${ESC}2m${s}${R}`,
 };
 
