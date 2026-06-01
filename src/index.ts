@@ -9,7 +9,7 @@ import { registerKillCriteriaGate } from "./gates/kill-criteria.js";
 import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons } from "./state/repo.js";
-import { refreshEpistemicWidget } from "./tui/widget.js";
+import { refreshEpistemicWidget, fitWidth } from "./tui/widget.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "./research/monitor-nav.js";
@@ -41,7 +41,7 @@ async function showTree(ctx: any) {
   const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
   const active = getActiveHypothesis(entries);
   const lines = renderResearchTree(entries, content, {}, active?.id);
-  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research map  (/map off to hide · /view to cycle)", ...lines], { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ research map  (/map off to hide · /view to cycle)", ...lines]), { placement: "belowEditor" });
 }
 
 /** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
@@ -64,7 +64,7 @@ async function renderCurrentView(ctx: any) {
       const spent = await getHypothesisSpend(ctx.cwd, e.id);
       return `  ${e.id} [${e.status}]  $${spent.toFixed(2)} / $${e.costCap}`;
     }));
-    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (/view to cycle)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
+    ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ cost  (/view to cycle)", ...(lines.length ? lines : ["  no hypotheses yet"])]), { placement: "belowEditor" });
     return;
   }
   ctx.ui.setWidget?.(TREE_KEY, undefined); // "off"
@@ -78,7 +78,7 @@ function cycleView(dir: number) {
 /** Re-render the interactive monitor widget from the cached fleet. */
 function rerenderMonitor(ctx: any) {
   if (!lastFleet) return;
-  ctx.ui.setWidget?.(TREE_KEY, renderMonitor(lastFleet, monitorMode, monitorIdx), { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, fitWidth(renderMonitor(lastFleet, monitorMode, monitorIdx)), { placement: "belowEditor" });
 }
 
 const ACTION_LABELS: Record<string, ActionLabel> = {
@@ -252,7 +252,7 @@ function registerResearchCommands(pi: any) {
     handler: async (_args: string, ctx: any) => {
       const lessons = await loadLessons(ctx.cwd);
       const text = summarizeLessons(lessons);
-      ctx.ui.setWidget?.(TREE_KEY, ["Ξ lessons  (/lessons off to hide)", ...text.split("\n")], { placement: "belowEditor" });
+      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ lessons  (/lessons off to hide)", ...text.split("\n")]), { placement: "belowEditor" });
       if (ctx.ui.notify) ctx.ui.notify("Ξ cross-run lessons shown below", "info");
     },
   });

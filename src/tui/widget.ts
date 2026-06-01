@@ -1,5 +1,15 @@
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import type { HypothesisEntry } from "../state/repo.js";
 import { loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "../state/repo.js";
+
+/**
+ * Clamp widget lines to the terminal width. pi crashes if a widget renders a
+ * line wider than the terminal — every setWidget payload must go through this.
+ */
+export function fitWidth(lines: string[]): string[] {
+  const w = Math.max(20, (process.stdout.columns ?? 80) - 2);
+  return lines.map((l) => truncateToWidth(l, w));
+}
 
 const STATUS_ICON: Record<string, string> = {
   OPEN:      "○",
@@ -42,7 +52,7 @@ export async function refreshEpistemicWidget(ctx: any, cwd: string, gates: strin
     const active  = getActiveHypothesis(entries);
     const spent   = active ? await getHypothesisSpend(cwd, active.id) : 0;
 
-    ctx.ui.setWidget?.("epistemic", buildEpistemicWidget(active, spent, gates), { placement: "belowEditor" });
+    ctx.ui.setWidget?.("epistemic", fitWidth(buildEpistemicWidget(active, spent, gates)), { placement: "belowEditor" });
     ctx.ui.setStatus?.("epistemic", buildEpistemicStatus(active));
   } catch {}
 }

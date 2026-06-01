@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseKey, reduceNav, actionPrompt } from "../src/research/monitor-nav.js";
 import { renderMonitor } from "../src/research/monitor.js";
+import { fitWidth } from "../src/tui/widget.js";
 import type { Fleet } from "../src/monitor/fleet.js";
 import type { HypothesisEntry } from "../src/state/repo.js";
 
@@ -85,6 +86,15 @@ test("detail interface shows the selected hypothesis detail + decision fork", ()
   assert.match(lines, /falsifier:/);
   assert.match(lines, /◇ if acc ≥ 0\.80/);
   assert.match(lines, /yes → ship/);
+});
+
+// Regression: widget lines wider than the terminal crash pi. fitWidth must clamp them.
+test("fitWidth clamps every line to the terminal width", () => {
+  const wide = "Ξ epistemic  ·  " + "x".repeat(300);
+  const limit = Math.max(20, (process.stdout.columns ?? 80) - 2);
+  for (const line of fitWidth([wide, "short", "y".repeat(500)])) {
+    assert.ok([...line].length <= limit, `line length ${[...line].length} exceeds ${limit}`);
+  }
 });
 
 test("empty fleet renders a friendly empty state", () => {
