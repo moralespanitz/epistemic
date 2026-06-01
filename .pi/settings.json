@@ -6,8 +6,5 @@
     ".pi/extensions/claude-auth/index.ts"
   ],
   "quietStartup": true,
-  "theme": "epistemic",
-  "themePaths": [
-    "themes"
-  ]
+  "theme": "epistemic"
 }

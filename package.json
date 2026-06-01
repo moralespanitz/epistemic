@@ -48,6 +48,9 @@
     ],
     "skills": [
       "./skills"
+    ],
+    "themes": [
+      "./themes/epistemic.json"
     ]
   }
 }
