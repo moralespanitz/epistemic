@@ -1,14 +1,16 @@
 /**
- * epistemic — pi.dev's real coding agent + the epistemic extension.
+ * epistemic — a research-discipline coding agent.
  *
- *   epistemic            → branded intro, then pi's REAL interactive chat
- *                          (full functionality: /model, markdown, tools, MCP, memory)
- *                          with the epistemic extension loaded (gates, /monitor, /map)
- *   epistemic monitor    → the full-screen interactive monitor on its own
+ *   epistemic            → branded intro, then the interactive chat + the
+ *                          epistemic extension (gates, /monitor, /map, skills)
+ *   epistemic monitor    → the full-screen interactive experiment monitor
  *
- * The chat is pi.dev, unchanged — epistemic is the extension on top, not a
- * replacement. The extension loads via omp's discovery (.pi/settings.json).
+ * Built on the pi agent SDK under the hood; the experience is epistemic's.
  */
+// Suppress the underlying framework's version/update banner so only epistemic shows.
+process.env.PI_SKIP_VERSION_CHECK = "1";
+process.env.PI_TELEMETRY = process.env.PI_TELEMETRY ?? "0";
+
 import { main } from "@earendil-works/pi-coding-agent";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";

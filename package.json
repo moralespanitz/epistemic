@@ -1,37 +1,46 @@
 {
-  "name": "@epistemic/pi",
+  "name": "epistemic",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
-  "description": "Research-methodology skills for coding agents — hypothesis registration, preregistration with Docker/Modal scaffold, baseline reproduction with AlphaXiv + HuggingFace, experiment execution with compute-target routing, statistical rigor, falsification review, surprise triage, kill-or-ship with PIVOT/REFINE, and verification with cross-run lessons. Gates enforce the rules automatically.",
+  "description": "A research-discipline coding agent: pre-register hypotheses, reproduce baselines, run experiments, falsify claims, and ship or kill — with an interactive experiment monitor and methodology gates.",
   "keywords": [
-    "pi-package",
     "epistemic",
+    "coding-agent",
     "research",
     "methodology",
     "reproducibility",
-    "huggingface",
-    "docker",
-    "modal"
+    "tui",
+    "experiments"
   ],
   "license": "MIT",
   "bin": {
     "epistemic": "./bin/epistemic.mjs"
   },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    ".pi",
+    "README.md",
+    "GUIDE.md",
+    "TESTING.md"
+  ],
   "scripts": {
+    "start": "node bin/epistemic.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "test:tui": "bash test/tui-e2e.sh",
     "test:agent-tui": "bash test/agent-tui-validate.sh",
     "test:agent-tui:ux": "bash test/agent-tui-ux.sh",
-    "test:snapshot": "bash test/agent-tui-snapshot.sh"
+    "test:snapshot": "bash test/agent-tui-snapshot.sh",
+    "verify": "npm run typecheck && npm test"
   },
-  "peerDependencies": {
+  "dependencies": {
     "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
-    "typebox": "*"
+    "tsx": "^4.22.4"
   },
   "pi": {
     "extensions": [
@@ -40,8 +49,5 @@
     "skills": [
       "./skills"
     ]
-  },
-  "devDependencies": {
-    "tsx": "^4.22.4"
   }
 }
