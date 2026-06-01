@@ -222,6 +222,23 @@ function registerResearchCommands(pi: any) {
     },
   });
 
+  // /sweep — fan out experiment variants in parallel (omp's parallel-subagents
+  // signature, applied to research). Prefills a structured instruction for review.
+  pi.registerCommand?.("sweep", {
+    description: "Fan out parallel experiment variants for the active hypothesis",
+    handler: async (args: string, ctx: any) => {
+      const active = getActiveHypothesis(await loadHypotheses(ctx.cwd));
+      const target = active ? `${active.id} ("${active.claim}")` : "the current hypothesis";
+      const dims = args.trim() || "the key variations (model size, learning rate, prompt)";
+      const prompt =
+        `Run a parameter sweep for ${target}: fan out experiments in parallel across ${dims}. ` +
+        `Pre-register each variant, keep each under its cost cap, run them concurrently (use parallel subagents where possible), ` +
+        `then compare the results in a table and recommend which to promote.`;
+      if (ctx.ui.setEditorText) ctx.ui.setEditorText(prompt);
+      else ctx.ui.notify?.(prompt, "info");
+    },
+  });
+
   // /lessons — cross-run memory (every kill/pivot/overrun, surfaced for reuse).
   // Inspired by omp's persistent memory; epistemic-native via .epistemic/lessons.jsonl.
   pi.registerCommand?.("lessons", {
