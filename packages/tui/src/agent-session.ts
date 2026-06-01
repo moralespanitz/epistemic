@@ -85,7 +85,9 @@ export class AgentSessionBridge {
         full += delta;
         onChunk(delta);
       } else if (event?.type === "tool_execution_start") {
-        onChunk(`\n  ⚙ ${event.toolName}…\n`);
+        onChunk(`\n  ⚙ ${event.toolName}…`);
+      } else if (event?.type === "tool_execution_end") {
+        onChunk(event.isError ? "  ✗\n" : "  ✓\n");
       }
     });
 

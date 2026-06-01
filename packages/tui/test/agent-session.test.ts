@@ -9,6 +9,7 @@ function fakeSession(): AgentSessionLike {
     async prompt() {
       for (const l of listeners) {
         l({ type: "tool_execution_start", toolName: "bash", toolCallId: "1", args: {} });
+        l({ type: "tool_execution_end", toolName: "bash", toolCallId: "1", result: "ok", isError: false });
         l({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "Hello" } });
         l({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: " world" } });
       }
@@ -25,11 +26,13 @@ test("ask streams text deltas and resolves with the full text", async () => {
   expect(chunks.join("")).toContain("Hello world");
 });
 
-test("ask surfaces tool activity to the stream", async () => {
+test("ask surfaces tool activity (start and completion) to the stream", async () => {
   const bridge = new AgentSessionBridge({ createSession: async () => ({ session: fakeSession() }) });
   const chunks: string[] = [];
   await bridge.ask("hi", undefined, (c) => chunks.push(c));
-  expect(chunks.join("")).toContain("⚙ bash");
+  const joined = chunks.join("");
+  expect(joined).toContain("⚙ bash");
+  expect(joined).toContain("✓");
 });
 
 test("ask reports unavailable when session creation fails", async () => {

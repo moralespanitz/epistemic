@@ -1,19 +1,30 @@
-# Epistemic Cockpit (TUI)
+# epistemic — your own coding agent
 
-A spatial research cockpit for epistemic. It works like Claude Code or pi.dev —
-a persistent prompt at the bottom you can always type into — but with spatial
-views of your research program: a conversation, a research tree, live mission
-control, and per-experiment focus.
+`epistemic` is a coding agent built on the **pi/omp agent core** (the same engine
+omp runs — real tools, MCP, memory, skills) with a **spatial research interface**
+on top: a conversation, a hypothesis tree, live mission control, per-experiment
+focus, and per-hypothesis threads. The methodology gates (preregistration,
+kill-or-ship, cost ledger, falsification) load into the same session.
 
-## Run
+It's not a wrapper around omp — it embeds the real agent via `createAgentSession`
+from `@earendil-works/pi-coding-agent`, and falls back to `omp -p` only if the SDK
+isn't available.
 
-From the root of a research repo (where `HYPOTHESES.md` / `experiments/` live):
+## Install & run
+
+```bash
+cd packages/tui && npm install && npm link   # makes `epistemic` global
+epistemic                                     # run it from any research repo
+```
+
+Or without linking:
 
 ```bash
 npx tsx packages/tui/src/main.tsx
-# or, once linked:
-epistemic-tui
 ```
+
+Run it from the root of a research repo (where `HYPOTHESES.md` / `experiments/`
+live, and a `.pi/` with your epistemic extension + settings).
 
 ## How you interact
 
