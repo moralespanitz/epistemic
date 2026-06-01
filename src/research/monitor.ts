@@ -1,77 +1,94 @@
 /**
- * In-chat mission-control dashboard — styled like the `claude agents` view:
- * a header with counts, then hypotheses grouped into Needs input / Working /
- * Completed, each a row of name · description · age. Rendered as an omp widget
- * (plain text) so you flip to it with /monitor and back with /monitor off.
+ * Interactive in-chat mission control. A "monitor mode" you navigate with the
+ * arrow keys (captured via onTerminalInput) — like a menu in a game:
+ *   ↑/↓  move between experiments
+ *   →    open the selected experiment's detail interface
+ *   ←    back to the tree
+ *   enter open the action menu (chat / approve / reject / modify)
+ * Rendered as an omp widget (plain text) so the real chat stays untouched.
  */
 import type { Fleet, ExperimentStat } from "../monitor/fleet.js";
 import type { HypothesisEntry } from "../state/repo.js";
+import { renderResearchTree, parseConditionalPlans } from "./tree.js";
 
-function age(ts: number, now: number): string {
-  const ms = now - ts;
-  if (!ts || ms < 0) return "";
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
+export type MonitorMode = "tree" | "detail";
+
+const STATUS_ICON: Record<string, string> = {
+  OPEN: "○", RUNNING: "▶", FALSIFIED: "✗", CONFIRMED: "✓", KILLED: "☓",
+};
+
+const BLOCKS = "▁▂▃▄▅▆▇█";
+function sparkline(series: number[], width = 10): string {
+  if (series.length === 0) return "·".repeat(width);
+  const tail = series.slice(-width);
+  const min = Math.min(...tail), max = Math.max(...tail), span = max - min;
+  return tail.map((v) => BLOCKS[span === 0 ? 0 : Math.round(((v - min) / span) * 7)]).join("");
 }
 
-function shortHome(cwd: string): string {
-  const home = process.env.HOME;
-  return home && cwd.startsWith(home) ? "~" + cwd.slice(home.length) : cwd;
+function costBar(spent: number, cap: number, width = 14): string {
+  const pct = cap > 0 ? Math.min(Math.round((spent / cap) * 100), 100) : 0;
+  const filled = Math.round((pct / 100) * width);
+  return `[${"█".repeat(filled)}${"░".repeat(width - filled)} ${pct}%]`;
 }
 
-function describe(e: HypothesisEntry, stat?: ExperimentStat): string {
-  switch (e.status) {
-    case "OPEN": return "awaiting preregistration";
-    case "RUNNING": return `running ${stat?.trialsDone ?? 0}/${stat?.trialsTotal ?? e.n} · $${(stat?.spent ?? 0).toFixed(0)}`;
-    case "FALSIFIED": return "needs triage — result diverged";
-    case "CONFIRMED": return "shipped — falsification clean";
-    case "KILLED": return `killed — ${e.killReason ?? "below criteria"}`;
-    default: return e.status;
-  }
+function header(fleet: Fleet): string {
+  return (
+    `Ξ epistemic · mission control   ${costBar(fleet.totalSpent, fleet.totalCap)} $${fleet.totalSpent.toFixed(2)}/$${fleet.totalCap}` +
+    `   ${fleet.running} running · ${fleet.shipped} shipped · ${fleet.killed} killed`
+  );
 }
 
-function row(marker: string, e: HypothesisEntry, desc: string, when: string): string {
-  const name = `${e.id}  ${e.claim.slice(0, 22)}`.padEnd(30);
-  return `${marker} ${name} ${desc.padEnd(38)} ${when}`;
-}
-
-/** Render the claude-agents-style dashboard as widget lines. `now` = Date.now(). */
-export function renderMonitorWidget(fleet: Fleet, cwd = process.cwd(), now = Date.now()): string[] {
-  const statById = new Map(fleet.stats.map((s) => [s.id, s]));
-
-  const needsInput = fleet.entries.filter((e) => e.status === "OPEN" || e.status === "FALSIFIED");
-  const working = fleet.entries.filter((e) => e.status === "RUNNING");
-  const completed = fleet.entries.filter((e) => e.status === "CONFIRMED" || e.status === "KILLED");
-
-  const lines: string[] = [];
-  lines.push(`Ξ epistemic · research agent · ${shortHome(cwd)}`);
-  lines.push(`${needsInput.length} awaiting input · ${working.length} working · ${completed.length} completed   ($${fleet.totalSpent.toFixed(2)}/$${fleet.totalCap})`);
-
-  if (needsInput.length) {
-    lines.push("");
-    lines.push("Needs input");
-    for (const e of needsInput) lines.push(row("*", e, describe(e, statById.get(e.id)), age(e.timestamp, now)));
-  }
-  if (working.length) {
-    lines.push("");
-    lines.push("Working");
-    for (const e of working) lines.push(row("*", e, describe(e, statById.get(e.id)), age(e.timestamp, now)));
-  }
-  if (completed.length) {
-    lines.push("");
-    lines.push("Completed");
-    for (const e of completed) lines.push(row("•", e, describe(e, statById.get(e.id)), age(e.timestamp, now)));
-  }
-  if (!needsInput.length && !working.length && !completed.length) {
-    lines.push("");
-    lines.push("  no hypotheses yet — describe a research idea to begin");
-  }
-
+function treeInterface(fleet: Fleet, selectedId?: string): string[] {
+  const lines = [header(fleet), ""];
+  lines.push("  ↑↓ select · → open · enter actions · /monitor off to chat");
   lines.push("");
-  lines.push("/hypothesis open · /map tree · /monitor off · /view cycle");
+  for (const l of renderResearchTree(fleet.entries, fleet.hypothesesContent, {}, selectedId)) lines.push(l);
+  lines.push("");
+  lines.push("experiments");
+  if (fleet.stats.length === 0) lines.push("  (none yet)");
+  else for (const s of fleet.stats) {
+    const sel = s.id === selectedId ? "▸" : " ";
+    const icon = STATUS_ICON[s.status] ?? "?";
+    lines.push(`  ${sel}${icon} ${s.id.padEnd(8)} ${`${s.trialsDone}/${s.trialsTotal}`.padEnd(7)} $${s.spent.toFixed(0).padEnd(5)} ${s.accSeries.length ? "acc " + sparkline(s.accSeries) : ""}`);
+  }
   return lines;
+}
+
+function detailInterface(fleet: Fleet, entry: HypothesisEntry, stat?: ExperimentStat): string[] {
+  const plan = parseConditionalPlans(fleet.hypothesesContent).get(entry.id);
+  const icon = STATUS_ICON[entry.status] ?? "?";
+  const lines = [
+    header(fleet),
+    "",
+    "  ← back · enter actions · /monitor off to chat",
+    "",
+    `${icon} ${entry.id}  [${entry.status}]`,
+    `claim:     ${entry.claim}`,
+    `falsifier: ${entry.falsifier}`,
+    `target:    ${entry.computeTarget}    judge: ${entry.judgeRef ?? "—"}`,
+    `cost:      ${costBar(stat?.spent ?? 0, entry.costCap)} $${(stat?.spent ?? 0).toFixed(2)} / $${entry.costCap}`,
+  ];
+  if (stat) lines.push(`trials:    ${stat.trialsDone}/${stat.trialsTotal}    acc ${sparkline(stat.accSeries)}`);
+  if (plan) {
+    lines.push("");
+    lines.push("decision:");
+    lines.push(`  ◇ if ${plan.condition}`);
+    lines.push(`  ├─ yes → ${plan.ifTrue}`);
+    lines.push(`  └─ no  → ${plan.ifFalse}`);
+  }
+  if (entry.killReason) lines.push(`killed:    ${entry.killReason}`);
+  lines.push("");
+  lines.push("press enter → chat / approve / reject / modify this hypothesis");
+  return lines;
+}
+
+/** Render the monitor in its current mode with the selected index highlighted. */
+export function renderMonitor(fleet: Fleet, mode: MonitorMode, selectedIdx: number): string[] {
+  if (fleet.entries.length === 0) {
+    return [header(fleet), "", "  no hypotheses yet — describe a research idea to begin", "", "/monitor off to chat"];
+  }
+  const idx = Math.max(0, Math.min(selectedIdx, fleet.entries.length - 1));
+  const entry = fleet.entries[idx];
+  if (mode === "detail") return detailInterface(fleet, entry, fleet.stats.find((s) => s.id === entry.id));
+  return treeInterface(fleet, entry.id);
 }

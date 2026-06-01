@@ -11,18 +11,24 @@ import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "./state/repo.js";
 import { refreshEpistemicWidget } from "./tui/widget.js";
 import { renderResearchTree } from "./research/tree.js";
-import { renderMonitorWidget } from "./research/monitor.js";
-import { loadFleet } from "./monitor/fleet.js";
+import { renderMonitor, type MonitorMode } from "./research/monitor.js";
+import { loadFleet, type Fleet } from "./monitor/fleet.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
-// Research views cycled by /view. "monitor" is the full dashboard.
+// Research views cycled by /view. "monitor" is the interactive dashboard.
 const RESEARCH_VIEWS = ["off", "monitor", "tree", "cost"] as const;
 type ResearchView = (typeof RESEARCH_VIEWS)[number];
 let currentView: ResearchView = "off";
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+// Interactive monitor-mode navigation state.
+let monitorMode: MonitorMode = "tree";
+let monitorIdx = 0;
+let lastFleet: Fleet | null = null;
+let navRegistered = false;
 
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
@@ -41,8 +47,8 @@ async function showTree(ctx: any) {
 async function renderCurrentView(ctx: any) {
   if (currentView === "monitor") {
     treeVisible = false;
-    const fleet = await loadFleet(ctx.cwd);
-    ctx.ui.setWidget?.(TREE_KEY, renderMonitorWidget(fleet, ctx.cwd), { placement: "belowEditor" });
+    lastFleet = await loadFleet(ctx.cwd);
+    rerenderMonitor(ctx);
     return;
   }
   if (currentView === "tree") {
@@ -68,6 +74,45 @@ function cycleView(dir: number) {
   currentView = RESEARCH_VIEWS[(i + dir + RESEARCH_VIEWS.length) % RESEARCH_VIEWS.length];
 }
 
+/** Re-render the interactive monitor widget from the cached fleet. */
+function rerenderMonitor(ctx: any) {
+  if (!lastFleet) return;
+  ctx.ui.setWidget?.(TREE_KEY, renderMonitor(lastFleet, monitorMode, monitorIdx), { placement: "belowEditor" });
+}
+
+/** Open the action menu for the selected hypothesis (chat / approve / reject / modify). */
+async function openSelected(ctx: any) {
+  const entry = lastFleet?.entries[monitorIdx];
+  if (!entry) return;
+  const action = await ctx.ui.select?.(`${entry.id} — action`, [
+    "chat about it", "approve (ship)", "reject (kill)", "modify (refine/pivot)",
+  ]);
+  if (!action) return;
+  const prompts: Record<string, string> = {
+    "chat about it": `Tell me about hypothesis ${entry.id}: "${entry.claim}". Current status and next step?`,
+    "approve (ship)": `Approve hypothesis ${entry.id} ("${entry.claim}"). Run kill-or-ship: if all gates pass, SHIP and run verification-before-publication; else list blockers.`,
+    "reject (kill)": `Reject hypothesis ${entry.id} ("${entry.claim}"). Run kill-or-ship with a KILL decision; record the lesson.`,
+    "modify (refine/pivot)": `Modify hypothesis ${entry.id} ("${entry.claim}"). Propose a REFINE or PIVOT per kill-or-ship.`,
+  };
+  const prompt = prompts[action];
+  if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
+  else ctx.ui.notify?.(prompt, "info");
+}
+
+/** Arrow-key navigation while monitor mode is active. Returns true if consumed. */
+function handleMonitorKey(ctx: any, data: string): boolean {
+  if (currentView !== "monitor" || !lastFleet) return false;
+  const n = lastFleet.entries.length;
+  switch (data) {
+    case "\x1b[A": monitorIdx = Math.max(0, monitorIdx - 1); rerenderMonitor(ctx); return true; // up
+    case "\x1b[B": monitorIdx = Math.min(Math.max(n - 1, 0), monitorIdx + 1); rerenderMonitor(ctx); return true; // down
+    case "\x1b[C": monitorMode = "detail"; rerenderMonitor(ctx); return true; // right → detail
+    case "\x1b[D": monitorMode = "tree"; rerenderMonitor(ctx); return true; // left → tree
+    case "\r": case "\n": void openSelected(ctx); return true; // enter → actions
+    default: return false;
+  }
+}
+
 export default async function (pi: ExtensionAPI) {
   // ─── Session start ───────────────────────────────────────────
   pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
@@ -88,6 +133,17 @@ export default async function (pi: ExtensionAPI) {
       // still says "pi" — that's internal to the framework; full rename = fork).
       ctx.ui.setStatus?.("epistemic-brand", "Ξ epistemic");
       ctx.ui.setWorkingMessage?.("Ξ epistemic is working…");
+
+      // Capture arrow keys for interactive monitor-mode navigation. Only acts
+      // when /monitor is open; otherwise passes input straight to the editor.
+      if (!navRegistered) {
+        ctx.ui.onTerminalInput?.((data: string) => {
+          if (handleMonitorKey(ctx, data)) return { consume: true };
+          return undefined;
+        });
+        navRegistered = true;
+      }
+
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
 
       // Live refresh: while a research view is open, keep it current even when
@@ -152,11 +208,14 @@ function registerResearchCommands(pi: any) {
       if (args.trim() === "off") {
         currentView = "off";
         ctx.ui.setWidget?.(TREE_KEY, undefined);
-        ctx.ui.notify?.("Ξ monitor hidden", "info");
+        ctx.ui.notify?.("Ξ monitor hidden — arrows back to the editor", "info");
         return;
       }
       currentView = "monitor";
+      monitorMode = "tree";
+      monitorIdx = 0;
       await renderCurrentView(ctx);
+      ctx.ui.notify?.("Ξ monitor — ↑↓ select · → open · ← back · enter actions", "info");
     },
   });
 
