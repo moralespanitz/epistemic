@@ -10,6 +10,7 @@ import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "./state/repo.js";
 import { refreshEpistemicWidget } from "./tui/widget.js";
+import { renderResearchTree } from "./research/tree.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
@@ -52,6 +53,74 @@ export default async function (pi: ExtensionAPI) {
 
   // ─── Tools ────────────────────────────────────────────────────
   registerHuggingFaceTools(pi);
+
+  // ─── Spatial research views (inside real omp) ─────────────────
+  registerResearchCommands(pi);
+}
+
+/**
+ * Register slash commands that add the spatial research experience INSIDE omp.
+ * This keeps epistemic as "pi.dev + extensions" — the real omp chat, plus a
+ * live decision-tree widget and a hypothesis action menu.
+ */
+function registerResearchCommands(pi: any) {
+  const TREE_KEY = "epistemic-tree";
+
+  pi.registerCommand?.("tree", {
+    description: "Toggle the epistemic decision tree (research program as a tree)",
+    handler: async (args: string, ctx: any) => {
+      if (args.trim() === "off") {
+        ctx.ui.setWidget?.(TREE_KEY, undefined);
+        ctx.ui.notify?.("Ξ tree hidden", "info");
+        return;
+      }
+      const entries = await loadHypotheses(ctx.cwd);
+      const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
+      const active = getActiveHypothesis(entries);
+      const lines = renderResearchTree(entries, content, {}, active?.id);
+      ctx.ui.setWidget?.(TREE_KEY, ["Ξ research tree  (/tree off to hide)", ...lines], { placement: "belowEditor" });
+    },
+  });
+
+  pi.registerCommand?.("hypothesis", {
+    description: "Pick a hypothesis and act on it (approve / reject / modify / chat)",
+    handler: async (_args: string, ctx: any) => {
+      const entries = await loadHypotheses(ctx.cwd);
+      if (entries.length === 0) { ctx.ui.notify?.("No hypotheses yet.", "info"); return; }
+      const choice = await ctx.ui.select?.(
+        "Select a hypothesis",
+        entries.map((e) => `${e.id} [${e.status}] ${e.claim.slice(0, 50)}`),
+      );
+      if (!choice) return;
+      const id = choice.split(" ")[0];
+      const action = await ctx.ui.select?.(`${id} — action`, ["chat", "approve (ship)", "reject (kill)", "modify (refine/pivot)"]);
+      if (!action) return;
+      const entry = entries.find((e) => e.id === id);
+      const prompts: Record<string, string> = {
+        "chat": `Tell me about hypothesis ${id}: "${entry?.claim}". What's the current status and next step?`,
+        "approve (ship)": `Approve hypothesis ${id} ("${entry?.claim}"). Run kill-or-ship: if all gates pass, SHIP and run verification-before-publication; otherwise list blockers.`,
+        "reject (kill)": `Reject hypothesis ${id} ("${entry?.claim}"). Run kill-or-ship with a KILL decision and record the lesson.`,
+        "modify (refine/pivot)": `Modify hypothesis ${id} ("${entry?.claim}"). Propose a REFINE or PIVOT per kill-or-ship.`,
+      };
+      const prompt = prompts[action];
+      // Hand the instruction to omp's real agent by prefilling/sending it.
+      if (ctx.ui.input) {
+        ctx.ui.notify?.(`Ξ ${action} → ask the agent: ${prompt.slice(0, 60)}…`, "info");
+      }
+      // Surface the composed instruction so the user can send it in the real chat.
+      ctx.ui.setStatus?.("epistemic-action", `Ξ ${id}: ${action}`);
+      if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
+      else ctx.ui.notify?.(prompt, "info");
+    },
+  });
+}
+
+async function safeReadFile(cwd: string, name: string): Promise<string | null> {
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    return await readFile(join(cwd, name), "utf8");
+  } catch { return null; }
 }
 
 function setupBeforeAgentStart(pi: any) {
