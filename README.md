@@ -8,14 +8,44 @@ Inspired by the norms of good ML research, the superpowers workflow format from 
 
 ## How It Works
 
-Your coding agent loads a **skill** and follows it step by step. The skill is a detailed manual that teaches the agent what to do in each phase. Behind the scenes, **gates** in the Pi extension enforce the rules automatically. Execution can run locally, in Docker containers, or on Modal's serverless GPU infrastructure.
+Epistemic is **pi.dev (omp) + extensions — not a replacement.** You run the real
+omp agent (its real chat, model, tools, MCP, memory), and epistemic loads as an
+extension that adds research discipline and spatial views on top.
+
+Your coding agent loads a **skill** and follows it step by step. Behind the
+scenes, **gates** in the extension enforce the rules automatically, and **research
+commands** add a decision-tree view and a hypothesis action menu inside omp.
+Execution can run locally, in Docker, or on Modal.
 
 | Layer | What it does |
 |-------|-------------|
 | **Skills** | Detailed manuals the agent follows step by step. The primary UX. |
-| **Gates** | Invisible enforcement inside the Pi extension. Block violations automatically. |
+| **Gates** | Invisible enforcement inside the extension. Block violations automatically. |
+| **Views** | `/tree` (decision tree of the research program) and `/hypothesis` (pick → approve/reject/modify/chat), rendered inside omp. |
 | **State** | File-based ledger: `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `experiments/{id}/`. |
 | **Tools** | HF dataset metadata, AlphaXiv paper search, cross-run lessons. |
+
+### Research views (inside omp)
+
+Author hypotheses in `HYPOTHESES.md` with optional `- **Parent:** <id>` and
+`- **Decision:** <cond> → <ifTrue> | else → <ifFalse>` fields, then:
+
+```
+/tree          # show the decision tree below the editor (stays live; /tree off to hide)
+/hypothesis    # pick a hypothesis → chat / approve (ship) / reject (kill) / modify (refine|pivot)
+```
+
+The tree renders top-down with decision forks:
+
+```
+● ✓ H-001  LoRA fine-tuning improves code-gen…
+│
+├─▶ ▶ H-004  Scaling LoRA to 7B…
+│   ◇ if acc ≥ 0.80
+│   ├─ yes → ship
+│   └─ no  → H-006 pivot
+└─▶ ☓ H-002  High learning rate…
+```
 
 ## The Pipeline
 

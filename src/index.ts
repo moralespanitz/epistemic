@@ -14,8 +14,20 @@ import { renderResearchTree } from "./research/tree.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
+let treeVisible = false; // whether the /tree widget is currently shown
 
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
+
+const TREE_KEY = "epistemic-tree";
+
+/** Render the decision-tree widget into omp's UI (below the editor). */
+async function showTree(ctx: any) {
+  const entries = await loadHypotheses(ctx.cwd);
+  const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
+  const active = getActiveHypothesis(entries);
+  const lines = renderResearchTree(entries, content, {}, active?.id);
+  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research tree  (/tree off to hide)", ...lines], { placement: "belowEditor" });
+}
 
 export default async function (pi: ExtensionAPI) {
   // ─── Session start ───────────────────────────────────────────
@@ -64,21 +76,17 @@ export default async function (pi: ExtensionAPI) {
  * live decision-tree widget and a hypothesis action menu.
  */
 function registerResearchCommands(pi: any) {
-  const TREE_KEY = "epistemic-tree";
-
   pi.registerCommand?.("tree", {
     description: "Toggle the epistemic decision tree (research program as a tree)",
     handler: async (args: string, ctx: any) => {
       if (args.trim() === "off") {
+        treeVisible = false;
         ctx.ui.setWidget?.(TREE_KEY, undefined);
         ctx.ui.notify?.("Ξ tree hidden", "info");
         return;
       }
-      const entries = await loadHypotheses(ctx.cwd);
-      const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
-      const active = getActiveHypothesis(entries);
-      const lines = renderResearchTree(entries, content, {}, active?.id);
-      ctx.ui.setWidget?.(TREE_KEY, ["Ξ research tree  (/tree off to hide)", ...lines], { placement: "belowEditor" });
+      treeVisible = true;
+      await showTree(ctx);
     },
   });
 
@@ -131,6 +139,7 @@ function setupBeforeAgentStart(pi: any) {
 
       if (sessionCtx) {
         await refreshEpistemicWidget(sessionCtx, event.cwd, ACTIVE_GATES);
+        if (treeVisible) { try { await showTree(sessionCtx); } catch {} }
       }
       if (!active) return;
 
