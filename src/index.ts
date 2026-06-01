@@ -75,9 +75,10 @@ export default async function (pi: ExtensionAPI) {
         );
         initialized = true;
       }
-      // Brand the footer as epistemic (the startup banner still says "pi" —
-      // that string is internal to the framework; a full rename needs a fork).
+      // Brand the footer + working indicator as epistemic (the startup banner
+      // still says "pi" — that's internal to the framework; full rename = fork).
       ctx.ui.setStatus?.("epistemic-brand", "Ξ epistemic");
+      ctx.ui.setWorkingMessage?.("Ξ epistemic is working…");
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
     } catch {}
   });
