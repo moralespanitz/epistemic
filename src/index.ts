@@ -11,15 +11,18 @@ import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "./state/repo.js";
 import { refreshEpistemicWidget } from "./tui/widget.js";
 import { renderResearchTree } from "./research/tree.js";
+import { renderMonitorWidget } from "./research/monitor.js";
+import { loadFleet } from "./monitor/fleet.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
-// Research views cycled by the view shortcut / command.
-const RESEARCH_VIEWS = ["off", "tree", "cost"] as const;
+// Research views cycled by /view. "monitor" is the full dashboard.
+const RESEARCH_VIEWS = ["off", "monitor", "tree", "cost"] as const;
 type ResearchView = (typeof RESEARCH_VIEWS)[number];
 let currentView: ResearchView = "off";
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
@@ -36,6 +39,12 @@ async function showTree(ctx: any) {
 
 /** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
 async function renderCurrentView(ctx: any) {
+  if (currentView === "monitor") {
+    treeVisible = false;
+    const fleet = await loadFleet(ctx.cwd);
+    ctx.ui.setWidget?.(TREE_KEY, renderMonitorWidget(fleet), { placement: "belowEditor" });
+    return;
+  }
   if (currentView === "tree") {
     treeVisible = true;
     await showTree(ctx);
@@ -80,10 +89,22 @@ export default async function (pi: ExtensionAPI) {
       ctx.ui.setStatus?.("epistemic-brand", "Ξ epistemic");
       ctx.ui.setWorkingMessage?.("Ξ epistemic is working…");
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
+
+      // Live refresh: while a research view is open, keep it current even when
+      // idle — like a real dashboard.
+      if (!refreshTimer) {
+        refreshTimer = setInterval(() => {
+          if (currentView !== "off" && sessionCtx) {
+            renderCurrentView(sessionCtx).catch(() => {});
+          }
+        }, 2000);
+      }
     } catch {}
   });
 
-  pi.on("session_shutdown", async () => {});
+  pi.on("session_shutdown", async () => {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  });
 
   // ─── State injection into system prompt ─────────────────────
   setupBeforeAgentStart(pi);
@@ -115,11 +136,26 @@ function registerResearchCommands(pi: any) {
   // (emacs bindings) and tree navigation, so any global shortcut either
   // conflicts or silently breaks an expected key.
   pi.registerCommand?.("view", {
-    description: "Cycle epistemic research views (off → tree → cost)",
+    description: "Cycle epistemic research views (off → monitor → tree → cost)",
     handler: async (args: string, ctx: any) => {
       const want = args.trim() as ResearchView;
       if (RESEARCH_VIEWS.includes(want)) currentView = want;
       else cycleView(1);
+      await renderCurrentView(ctx);
+    },
+  });
+
+  // /monitor — the claude-agents-style live dashboard, inside the chat.
+  pi.registerCommand?.("monitor", {
+    description: "Live mission-control dashboard (tree + experiments + burn). /monitor off to hide.",
+    handler: async (args: string, ctx: any) => {
+      if (args.trim() === "off") {
+        currentView = "off";
+        ctx.ui.setWidget?.(TREE_KEY, undefined);
+        ctx.ui.notify?.("Ξ monitor hidden", "info");
+        return;
+      }
+      currentView = "monitor";
       await renderCurrentView(ctx);
     },
   });
