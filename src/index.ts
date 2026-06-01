@@ -31,7 +31,7 @@ async function showTree(ctx: any) {
   const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
   const active = getActiveHypothesis(entries);
   const lines = renderResearchTree(entries, content, {}, active?.id);
-  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research tree  (/tree off to hide)", ...lines], { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, ["Ξ research map  (/map off to hide · alt+←/→ cycle views)", ...lines], { placement: "belowEditor" });
 }
 
 /** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
@@ -48,7 +48,7 @@ async function renderCurrentView(ctx: any) {
       const spent = await getHypothesisSpend(ctx.cwd, e.id);
       return `  ${e.id} [${e.status}]  $${spent.toFixed(2)} / $${e.costCap}`;
     }));
-    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (← cycle views)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
+    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (alt+←/→ cycle views)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
     return;
   }
   ctx.ui.setWidget?.(TREE_KEY, undefined); // "off"
@@ -75,6 +75,9 @@ export default async function (pi: ExtensionAPI) {
         );
         initialized = true;
       }
+      // Brand the footer as epistemic (the startup banner still says "pi" —
+      // that string is internal to the framework; a full rename needs a fork).
+      ctx.ui.setStatus?.("epistemic-brand", "Ξ epistemic");
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
     } catch {}
   });
@@ -107,12 +110,12 @@ export default async function (pi: ExtensionAPI) {
  */
 function registerResearchCommands(pi: any) {
   // View-switching: cycle research views (off → tree → cost) like flipping
-  // between screens. Bound to a shortcut and exposed as /view.
-  pi.registerShortcut?.("ctrl+right", {
+  // between screens. alt+←/→ avoids pi's built-in ctrl+←/→ (tree fold).
+  pi.registerShortcut?.("alt+right", {
     description: "epistemic: next research view",
     handler: async (ctx: any) => { cycleView(1); await renderCurrentView(ctx); },
   });
-  pi.registerShortcut?.("ctrl+left", {
+  pi.registerShortcut?.("alt+left", {
     description: "epistemic: previous research view",
     handler: async (ctx: any) => { cycleView(-1); await renderCurrentView(ctx); },
   });
@@ -127,16 +130,19 @@ function registerResearchCommands(pi: any) {
     },
   });
 
-  pi.registerCommand?.("tree", {
-    description: "Toggle the epistemic decision tree (research program as a tree)",
+  // /map (not /tree — that's a built-in pi command).
+  pi.registerCommand?.("map", {
+    description: "Toggle the epistemic decision tree (research program as a map)",
     handler: async (args: string, ctx: any) => {
       if (args.trim() === "off") {
         treeVisible = false;
+        currentView = "off";
         ctx.ui.setWidget?.(TREE_KEY, undefined);
-        ctx.ui.notify?.("Ξ tree hidden", "info");
+        ctx.ui.notify?.("Ξ map hidden", "info");
         return;
       }
       treeVisible = true;
+      currentView = "tree";
       await showTree(ctx);
     },
   });
