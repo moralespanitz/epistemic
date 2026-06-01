@@ -16,6 +16,11 @@ let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
+// Research views cycled by the view shortcut / command.
+const RESEARCH_VIEWS = ["off", "tree", "cost"] as const;
+type ResearchView = (typeof RESEARCH_VIEWS)[number];
+let currentView: ResearchView = "off";
+
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
 const TREE_KEY = "epistemic-tree";
@@ -27,6 +32,31 @@ async function showTree(ctx: any) {
   const active = getActiveHypothesis(entries);
   const lines = renderResearchTree(entries, content, {}, active?.id);
   ctx.ui.setWidget?.(TREE_KEY, ["Ξ research tree  (/tree off to hide)", ...lines], { placement: "belowEditor" });
+}
+
+/** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
+async function renderCurrentView(ctx: any) {
+  if (currentView === "tree") {
+    treeVisible = true;
+    await showTree(ctx);
+    return;
+  }
+  treeVisible = false;
+  if (currentView === "cost") {
+    const entries = await loadHypotheses(ctx.cwd);
+    const lines = await Promise.all(entries.map(async (e) => {
+      const spent = await getHypothesisSpend(ctx.cwd, e.id);
+      return `  ${e.id} [${e.status}]  $${spent.toFixed(2)} / $${e.costCap}`;
+    }));
+    ctx.ui.setWidget?.(TREE_KEY, ["Ξ cost  (← cycle views)", ...(lines.length ? lines : ["  no hypotheses yet"])], { placement: "belowEditor" });
+    return;
+  }
+  ctx.ui.setWidget?.(TREE_KEY, undefined); // "off"
+}
+
+function cycleView(dir: number) {
+  const i = RESEARCH_VIEWS.indexOf(currentView);
+  currentView = RESEARCH_VIEWS[(i + dir + RESEARCH_VIEWS.length) % RESEARCH_VIEWS.length];
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -76,6 +106,27 @@ export default async function (pi: ExtensionAPI) {
  * live decision-tree widget and a hypothesis action menu.
  */
 function registerResearchCommands(pi: any) {
+  // View-switching: cycle research views (off → tree → cost) like flipping
+  // between screens. Bound to a shortcut and exposed as /view.
+  pi.registerShortcut?.("ctrl+right", {
+    description: "epistemic: next research view",
+    handler: async (ctx: any) => { cycleView(1); await renderCurrentView(ctx); },
+  });
+  pi.registerShortcut?.("ctrl+left", {
+    description: "epistemic: previous research view",
+    handler: async (ctx: any) => { cycleView(-1); await renderCurrentView(ctx); },
+  });
+
+  pi.registerCommand?.("view", {
+    description: "Cycle epistemic research views (off → tree → cost)",
+    handler: async (args: string, ctx: any) => {
+      const want = args.trim() as ResearchView;
+      if (RESEARCH_VIEWS.includes(want)) currentView = want;
+      else cycleView(1);
+      await renderCurrentView(ctx);
+    },
+  });
+
   pi.registerCommand?.("tree", {
     description: "Toggle the epistemic decision tree (research program as a tree)",
     handler: async (args: string, ctx: any) => {

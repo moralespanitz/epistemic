@@ -6,6 +6,9 @@
   "description": "Research-methodology skills for coding agents — hypothesis registration, preregistration with Docker/Modal scaffold, baseline reproduction with AlphaXiv + HuggingFace, experiment execution with compute-target routing, statistical rigor, falsification review, surprise triage, kill-or-ship with PIVOT/REFINE, and verification with cross-run lessons. Gates enforce the rules automatically.",
   "keywords": ["pi-package", "epistemic", "research", "methodology", "reproducibility", "huggingface", "docker", "modal"],
   "license": "MIT",
+  "bin": {
+    "epistemic": "./bin/epistemic.mjs"
+  },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-agent-core": "*",
