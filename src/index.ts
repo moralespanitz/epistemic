@@ -110,6 +110,12 @@ function handleMonitorKey(ctx: any, data: string): boolean {
 }
 
 export default async function (pi: ExtensionAPI) {
+  // Load exactly once. The launcher injects this extension (so it works from any
+  // directory), and a research repo's .pi/settings.json also discovers it — the
+  // process-wide guard prevents double-registration (which would conflict).
+  if ((globalThis as any).__epistemicLoaded) return;
+  (globalThis as any).__epistemicLoaded = true;
+
   // ─── Session start ───────────────────────────────────────────
   pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
     sessionCtx = ctx;

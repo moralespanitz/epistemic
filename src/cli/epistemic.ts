@@ -12,6 +12,7 @@ process.env.PI_SKIP_VERSION_CHECK = "1";
 process.env.PI_TELEMETRY = process.env.PI_TELEMETRY ?? "0";
 
 import { main } from "@earendil-works/pi-coding-agent";
+import epistemicExtension from "../index.js";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
 
@@ -27,7 +28,10 @@ async function run() {
   if (interactive) {
     try { await playIntro(); } catch { /* never block the agent on the intro */ }
   }
-  await main(args);
+  // Inject the epistemic extension so gates + /monitor work from ANY directory
+  // (not only inside a repo whose .pi/settings.json discovers it). The extension's
+  // own process-wide guard prevents double-load when both paths apply.
+  await main(args, { extensionFactories: [epistemicExtension as unknown as (pi: unknown) => void] });
 }
 
 run().catch((err) => {
