@@ -25,7 +25,7 @@ export async function runEpistemicTui(cwd: string): Promise<void> {
   const tui = new TUI(terminal);
 
   let view: ViewName = "chat";
-  const messages: Msg[] = [{ role: "system", text: "Ξ epistemic — your research agent. Tab swaps Chat ⇄ Monitor. Type to chat." }];
+  const messages: Msg[] = [{ role: "system", text: "Ξ epistemic — your research agent. ←/→ swap Chat ⇄ Monitor. Type to chat." }];
   let draft = "";
   let busy = false;
   let fleet: Fleet = await loadFleet(cwd);
@@ -53,7 +53,8 @@ export async function runEpistemicTui(cwd: string): Promise<void> {
 
   function header(width: number): string[] {
     const tab = (name: string, on: boolean) => (on ? magenta(`[ ${name} ]`) : dim(`  ${name}  `));
-    const bar = `${magenta("Ξ epistemic")}   ${tab("Chat", view === "chat")}${tab("Monitor", view === "monitor")}   ${dim("tab swap · ←→ in view · ^C quit")}`;
+    const hint = view === "monitor" ? "←→ swap · ↑↓ select · enter open · esc back · ^C quit" : "←→ swap views · type to chat · ^C quit";
+    const bar = `${magenta("Ξ epistemic")}   ${tab("Chat", view === "chat")}${tab("Monitor", view === "monitor")}   ${dim(hint)}`;
     return [bar, dim("─".repeat(Math.min(width, 100)))];
   }
 
@@ -100,21 +101,23 @@ export async function runEpistemicTui(cwd: string): Promise<void> {
     busy = false; tui.requestRender();
   }
 
+  function openSelectedInChat() {
+    const entry = fleet.entries[monIdx];
+    if (!entry) return;
+    const prompt = actionPrompt("chat", entry);
+    messages.push({ role: "you", text: prompt }, { role: "agent", text: "" });
+    view = "chat";
+    if (session) { busy = true; void session.prompt(prompt).finally(() => { busy = false; tui.requestRender(); }); }
+  }
+
   function monitorKey(data: string) {
-    const res = reduceNav({ mode: monMode, idx: monIdx }, parseKey(data), fleet.entries.length);
-    if (!res.handled) return;
-    monMode = res.state.mode; monIdx = res.state.idx;
-    if (res.openAction) {
-      // Enter opens the selected hypothesis in chat (a scoped discussion). The
-      // full approve/reject/modify menu is a follow-up; for now it discusses it.
-      const entry = fleet.entries[monIdx];
-      if (entry) {
-        const prompt = actionPrompt("chat", entry);
-        messages.push({ role: "you", text: prompt }, { role: "agent", text: "" });
-        view = "chat";
-        if (session) { busy = true; void session.prompt(prompt).finally(() => { busy = false; tui.requestRender(); }); }
-      }
-    }
+    // ←/→ are reserved for global view swap; here we use ↑/↓ + enter + esc.
+    const k = parseKey(data);
+    if (k === "up") monIdx = Math.max(0, monIdx - 1);
+    else if (k === "down") monIdx = Math.min(Math.max(fleet.entries.length - 1, 0), monIdx + 1);
+    else if (k === "enter") { if (monMode === "tree") monMode = "detail"; else openSelectedInChat(); }
+    else if (data === "\x1b" || data === "\x7f" || data === "\b") monMode = "tree"; // esc/backspace → back
+    else return;
     tui.requestRender();
     void actions;
   }
@@ -125,9 +128,12 @@ export async function runEpistemicTui(cwd: string): Promise<void> {
     if (data >= " " && !data.startsWith("\x1b")) { draft += data; tui.requestRender(); }
   }
 
+  const swap = () => { view = view === "chat" ? "monitor" : "chat"; tui.requestRender(); };
+
   tui.addInputListener((data: string) => {
-    if (data === "\x03") { tui.stop(); session?.dispose?.(); process.exit(0); } // ctrl+c
-    if (data === "\t") { view = view === "chat" ? "monitor" : "chat"; tui.requestRender(); return; }
+    if (data === "\x03") { tui.stop(); session?.dispose?.(); process.exit(0); return; } // ctrl+c
+    // ←/→ and Tab swap the top-level view — from anywhere (claude-agents style).
+    if (data === "\x1b[D" || data === "\x1b[C" || data === "\t") { swap(); return; }
     if (view === "monitor") monitorKey(data);
     else chatKey(data);
   });
