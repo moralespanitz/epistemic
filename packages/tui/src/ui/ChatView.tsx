@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { ChatMessage } from "../model/types.js";
+import { Spinner } from "./Spinner.js";
 
 const ROLE_LABEL: Record<ChatMessage["role"], string> = {
   user: "you", assistant: "agent", system: "Ξ",
@@ -27,7 +28,7 @@ export function ChatView({ messages, busy }: { messages: ChatMessage[]; busy: bo
           <Text>{m.text || (m.role === "assistant" && busy ? "…" : "")}</Text>
         </Box>
       ))}
-      {busy && <Text color="yellow">  agent thinking…</Text>}
+      {busy && <Box marginTop={1}><Spinner label="agent working… esc to keep waiting" /></Box>}
     </Box>
   );
 }
