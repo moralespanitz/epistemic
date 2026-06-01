@@ -73,6 +73,26 @@ test("typing /model with an id switches the agent model via controls", async () 
   expect(setModel).toHaveBeenCalledWith("gpt-5.2");
 });
 
+test("/model with no arg opens the picker; selecting sets the model", async () => {
+  const setModel = vi.fn();
+  const loadModels = vi.fn().mockResolvedValue(["claude-opus-4-8", "claude-sonnet-4-6", "gpt-5.2"]);
+  const { lastFrame, stdin } = render(
+    <App {...deps()} controls={{ setModel, getModel: () => undefined, loadModels }} />,
+  );
+  await tick();
+  stdin.write("/model");
+  await tick();
+  stdin.write("\r"); // open picker
+  await tick();
+  expect(lastFrame()).toContain("SELECT MODEL");
+  expect(lastFrame()).toContain("claude-opus-4-8");
+  stdin.write("\x1B[B"); // down → second item
+  await tick();
+  stdin.write("\r"); // select
+  await tick();
+  expect(setModel).toHaveBeenCalledWith("claude-sonnet-4-6");
+});
+
 test("a passthrough command (/commit) is forwarded to the agent", async () => {
   const d = deps();
   const { stdin } = render(<App {...d} />);

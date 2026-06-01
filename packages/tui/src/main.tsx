@@ -3,6 +3,7 @@ import { render } from "ink";
 import { StateStore } from "./state-store.js";
 import { ExperimentRunner } from "./experiment-runner.js";
 import { AgentBridge } from "./agent-bridge.js";
+import { listModels } from "./models.js";
 import { App } from "./ui/App.js";
 import type { ResearchWorld } from "./model/types.js";
 
@@ -26,6 +27,7 @@ async function main() {
       controls={{
         setModel: (id) => bridge.setModel(id),
         getModel: () => bridge.getModel(),
+        loadModels: (query) => listModels(query),
       }}
     />,
   );

@@ -4,6 +4,7 @@ import type { ChatMessage, HypothesisNode, LensName, ResearchWorld } from "../mo
 import type { NodeContext } from "../agent-bridge.js";
 import { parseSlash, COMMANDS } from "../slash-commands.js";
 import { ChatView } from "./ChatView.js";
+import { ModelPicker } from "./ModelPicker.js";
 import { LensMissions } from "./LensMissions.js";
 import { LensTree } from "./LensTree.js";
 import { LensFocus } from "./LensFocus.js";
@@ -15,6 +16,14 @@ import { StatusFooter } from "./StatusFooter.js";
 export interface AgentControls {
   setModel?: (id: string | undefined) => void;
   getModel?: () => string | undefined;
+  loadModels?: (query: string) => Promise<string[]>;
+}
+
+interface PickerState {
+  all: string[];
+  query: string;
+  index: number;
+  loading: boolean;
 }
 
 export interface AppProps {
@@ -44,9 +53,22 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [picker, setPicker] = useState<PickerState | null>(null);
   const nextId = React.useRef(0);
 
   useEffect(() => subscribe(setWorld), [subscribe]);
+
+  const pickerItems = (p: PickerState): string[] => {
+    const q = p.query.toLowerCase();
+    return q ? p.all.filter((m) => m.toLowerCase().includes(q)) : p.all;
+  };
+
+  const openModelPicker = () => {
+    setPicker({ all: [], query: "", index: 0, loading: true });
+    void (controls?.loadModels?.("") ?? Promise.resolve([])).then((all) =>
+      setPicker((p) => (p ? { ...p, all, loading: false } : p)),
+    );
+  };
 
   const nodes = world.nodes;
   const selected = nodes[Math.min(selectedIdx, Math.max(nodes.length - 1, 0))];
@@ -112,7 +134,7 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
       }
       case "model": {
         if (r.arg) { controls?.setModel?.(r.arg); note(`model → ${r.arg}`); }
-        else note(`model: ${controls?.getModel?.() ?? "default"}`);
+        else openModelPicker(); // no arg → open the interactive picker
         break;
       }
       case "clear":
@@ -155,6 +177,27 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") { exit(); return; }
+
+    // Model picker captures input while open.
+    if (picker) {
+      const items = pickerItems(picker);
+      if (key.escape) { setPicker(null); return; }
+      if (key.return) {
+        const m = items[picker.index];
+        if (m) { controls?.setModel?.(m); note(`model → ${m}`); }
+        setPicker(null);
+        return;
+      }
+      if (key.upArrow) { setPicker((p) => (p ? { ...p, index: Math.max(0, p.index - 1) } : p)); return; }
+      if (key.downArrow) {
+        setPicker((p) => (p ? { ...p, index: Math.min(pickerItems(p).length - 1, p.index + 1) } : p));
+        return;
+      }
+      if (key.backspace || key.delete) { setPicker((p) => (p ? { ...p, query: p.query.slice(0, -1), index: 0 } : p)); return; }
+      if (input && !key.ctrl && !key.meta) { setPicker((p) => (p ? { ...p, query: p.query + input, index: 0 } : p)); return; }
+      return;
+    }
+
     if (key.return) { submit(); return; }
     if (key.escape) { setDraft(""); return; }
     if (key.backspace || key.delete) { setDraft((d) => d.slice(0, -1)); return; }
@@ -168,14 +211,26 @@ export function App({ initialWorld, subscribe, runner, ask, controls }: AppProps
       <Header world={world} />
       <Box>
         <Box flexDirection="column" flexGrow={1}>
-          {lens === "chat" && <ChatView messages={messages} busy={busy} />}
-          {lens === "tree" && <LensTree world={world} selectedId={selected?.id} />}
-          {lens === "missions" && <LensMissions world={world} selectedId={selected?.id} />}
-          {lens === "focus" && <LensFocus world={world} selectedId={selected?.id} />}
+          {picker ? (
+            <ModelPicker
+              items={pickerItems(picker)}
+              query={picker.query}
+              index={picker.index}
+              loading={picker.loading}
+              current={controls?.getModel?.()}
+            />
+          ) : (
+            <>
+              {lens === "chat" && <ChatView messages={messages} busy={busy} />}
+              {lens === "tree" && <LensTree world={world} selectedId={selected?.id} />}
+              {lens === "missions" && <LensMissions world={world} selectedId={selected?.id} />}
+              {lens === "focus" && <LensFocus world={world} selectedId={selected?.id} />}
+            </>
+          )}
         </Box>
         <Inspector node={selected} world={world} />
       </Box>
-      <PromptInput draft={draft} busy={busy} />
+      {!picker && <PromptInput draft={draft} busy={busy} />}
       <StatusFooter world={world} lens={lens} />
     </Box>
   );
