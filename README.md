@@ -83,6 +83,17 @@ epistemic hooks clean           # remove unused hooks (e.g. Superset) + prune em
 
 Every settings write backs up to `~/.claude/settings.json.bak` first.
 
+Activate/deactivate the skills anytime with `epistemic skills`:
+
+```bash
+epistemic skills status   # which epistemic skills are active in Claude Code
+epistemic skills on       # activate (symlink all into ~/.claude/skills)
+epistemic skills off      # deactivate (removes only our symlinks)
+```
+
+(If you install via the marketplace instead, Claude Code's `/plugin` menu toggles
+the whole `epistemic-skills` plugin on/off natively.)
+
 Then Claude Code surfaces the skills automatically (or invoke one explicitly,
 e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
 (blocking experiments before prereg, judge-lock, cost ledger) lives in the pi
