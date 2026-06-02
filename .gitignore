@@ -9,3 +9,7 @@ HYPOTHESES.md
 BASELINES.md
 RESULTS.md
 experiments/
+
+# local secrets (never commit)
+.env
+.env.local

@@ -11,6 +11,13 @@
 process.env.PI_SKIP_VERSION_CHECK = "1";
 process.env.PI_TELEMETRY = process.env.PI_TELEMETRY ?? "0";
 
+// Load a local .env (keys for adversary models, HuggingFace, Modal, etc.) so
+// experiments and gates have what they need. Agent-model auth still goes via /login.
+import { existsSync } from "node:fs";
+for (const f of [".env", ".env.local"]) {
+  if (existsSync(f)) { try { process.loadEnvFile(f); } catch { /* ignore */ } }
+}
+
 import { main } from "@earendil-works/pi-coding-agent";
 import epistemicExtension from "../index.js";
 import { playIntro } from "./intro.js";

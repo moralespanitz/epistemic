@@ -10,6 +10,29 @@ experiments.
 
 ---
 
+## Keys & auth
+
+epistemic uses a few kinds of credentials. Two ways to provide them:
+
+1. **Agent model** (the chat) — run **`/login`** inside epistemic (stored in
+   `~/.pi/agent/auth.json`, persists across sessions). Default model is
+   `openrouter/deepseek/deepseek-v4-pro`, so log into **OpenRouter** (or set
+   `OPENROUTER_API_KEY`). `/login` to Anthropic too if you want Claude on demand.
+
+2. **Experiment & gate keys** — copy `.env.example` → **`.env`** (gitignored,
+   auto-loaded on start) and fill in what you use:
+
+| Key | Used for |
+|-----|----------|
+| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` | the agent model (or use `/login`) |
+| `OPENAI_API_KEY`, `GOOGLE_API_KEY` | falsification-review adversaries (needs ≥2 providers) |
+| `HF_TOKEN` | HuggingFace baselines / gated datasets |
+| **Modal** | compute target `modal`: run `modal setup` once, or set `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` |
+
+```bash
+cp .env.example .env   # then edit
+```
+
 ## Start
 
 ```bash
