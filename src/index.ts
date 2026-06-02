@@ -16,13 +16,14 @@ import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "./research/monitor-nav.js";
 import { loadFleet, type Fleet } from "./monitor/fleet.js";
+import { renderBoard, parallelLanesText } from "./research/board.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
 // Research views cycled by /view. "monitor" is the interactive dashboard.
-const RESEARCH_VIEWS = ["off", "monitor", "tree", "cost"] as const;
+const RESEARCH_VIEWS = ["off", "monitor", "board", "tree", "cost"] as const;
 type ResearchView = (typeof RESEARCH_VIEWS)[number];
 let currentView: ResearchView = "off";
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -59,6 +60,11 @@ async function renderCurrentView(ctx: any) {
     return;
   }
   treeVisible = false;
+  if (currentView === "board") {
+    const fleet = await loadFleet(ctx.cwd);
+    ctx.ui.setWidget?.(TREE_KEY, linesWidget(renderBoard(fleet)), { placement: "belowEditor" });
+    return;
+  }
   if (currentView === "cost") {
     const entries = await loadHypotheses(ctx.cwd);
     const lines = await Promise.all(entries.map(async (e) => {
@@ -332,6 +338,25 @@ function registerResearchCommands(pi: any) {
     },
   });
 
+  // /board — the parallel mission-control board: every hypothesis as a card in
+  // its current pipeline lane (Prereg · Baseline · Running · Review · Decided),
+  // so many advance concurrently instead of one linear funnel.
+  pi.registerCommand?.("board", {
+    description: "Parallel board — every hypothesis in its current pipeline lane",
+    handler: async (args: string, ctx: any) => {
+      if (args.trim() === "off") {
+        currentView = "off";
+        ctx.ui.setWidget?.(TREE_KEY, undefined);
+        ctx.ui.notify?.("Ξ board hidden", "info");
+        return;
+      }
+      treeVisible = false;
+      currentView = "board";
+      await renderCurrentView(ctx);
+      ctx.ui.notify?.("Ξ parallel board — /view to cycle · /board off to hide", "info");
+    },
+  });
+
   pi.registerCommand?.("hypothesis", {
     description: "Pick a hypothesis and act on it (approve / reject / modify / chat)",
     handler: async (_args: string, ctx: any) => {
@@ -422,6 +447,11 @@ function setupBeforeAgentStart(pi: any) {
       const facts = await gatherStageFacts(event.cwd, active, spent);
       const stageBlock = renderStageBlock(deriveStage(facts));
 
+      // Multi-lane: surface EVERY in-flight hypothesis with its own next action,
+      // so the agent works lanes in parallel instead of serializing on one.
+      const fleet = await loadFleet(event.cwd);
+      const lanes = parallelLanesText(fleet);
+
       const summary = [
         stageBlock,
         ``,
@@ -434,8 +464,10 @@ function setupBeforeAgentStart(pi: any) {
         `- Cost: $${spent.toFixed(2)} / $${active.costCap} (${pct}%)`,
         `- Compute: ${active.computeTarget}`,
         ``,
+        ...(lanes.length ? [...lanes, ``] : []),
         `Methodology gates active: ${ACTIVE_GATES.join(" ✓  ")} ✓`,
         `Provisional results go in smokes/ only. Headline files require confirmed experiments.`,
+        `Work lanes in parallel where they don't share a judge/baseline lock; use parallel subagents (/sweep) to run independent experiments concurrently.`,
         `Overrides go in OVERRIDES.md with a mandatory reason (≥50 chars).`,
         `Kill criteria: spend >$${(active.costCap * 1.5).toFixed(2)} or >21 days → run kill-or-ship skill.`,
         ``,
