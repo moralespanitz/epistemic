@@ -47,6 +47,19 @@ the pi agent:
 /plugin install epistemic-skills@epistemic
 ```
 
+Or invoke the umbrella **`epistemic`** skill (*"use the epistemic mechanism"*) —
+it orchestrates the whole pipeline and lists the gates to self-enforce.
+
+Local install without the marketplace (symlink, stays in sync with this repo):
+
+```bash
+for s in epistemic research-question preregistration baseline-reproduction \
+  experiment-execution statistical-rigor falsification-review surprise-triage \
+  kill-or-ship verification-before-publication; do
+  ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
+done
+```
+
 Then Claude Code surfaces the skills automatically (or invoke one explicitly,
 e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
 (blocking experiments before prereg, judge-lock, cost ledger) lives in the pi
