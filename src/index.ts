@@ -31,7 +31,6 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null;
 let monitorMode: MonitorMode = "tree";
 let monitorIdx = 0;
 let lastFleet: Fleet | null = null;
-let navRegistered = false;
 
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
@@ -111,12 +110,20 @@ function handleMonitorKey(ctx: any, data: string): boolean {
   return true;
 }
 
+// Register once PER pi INSTANCE — not process-globally. pi rebuilds its command
+// registry on reload / reconnect / session switch and re-invokes this factory
+// with a FRESH instance whose command map is empty; a process-wide flag would
+// skip re-registration and make /monitor & friends silently disappear until
+// restart. Keying on the instance re-registers for each new one while never
+// double-registering on the same instance (which is why the launcher-injected
+// load and the .pi/settings.json-discovered load don't conflict — different
+// instances, each gets its own clean registration).
+const registeredInstances = new WeakSet<object>();
+const navRegisteredCtxs = new WeakSet<object>();
+
 export default async function (pi: ExtensionAPI) {
-  // Load exactly once. The launcher injects this extension (so it works from any
-  // directory), and a research repo's .pi/settings.json also discovers it — the
-  // process-wide guard prevents double-registration (which would conflict).
-  if ((globalThis as any).__epistemicLoaded) return;
-  (globalThis as any).__epistemicLoaded = true;
+  if (registeredInstances.has(pi as object)) return;
+  registeredInstances.add(pi as object);
 
   // ─── Session start ───────────────────────────────────────────
   pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
@@ -140,12 +147,12 @@ export default async function (pi: ExtensionAPI) {
 
       // Capture arrow keys for interactive monitor-mode navigation. Only acts
       // when /monitor is open; otherwise passes input straight to the editor.
-      if (!navRegistered) {
+      if (!navRegisteredCtxs.has(ctx as object)) {
         ctx.ui.onTerminalInput?.((data: string) => {
           if (handleMonitorKey(ctx, data)) return { consume: true };
           return undefined;
         });
-        navRegistered = true;
+        navRegisteredCtxs.add(ctx as object);
       }
 
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
