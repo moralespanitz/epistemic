@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseKey, reduceNav, actionPrompt } from "../src/research/monitor-nav.js";
 import { renderMonitor } from "../src/research/monitor.js";
+import { renderTreeDiagram } from "../src/research/diagram.js";
 import { fitWidth, linesWidget } from "../src/tui/widget.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Fleet } from "../src/monitor/fleet.js";
@@ -79,12 +80,31 @@ test("tree interface shows the selected experiment and the tree", () => {
   assert.match(lines, /▸/); // selection marker
 });
 
-test("tree interface renders the decision fork inline (to the right) and progress", () => {
+test("tree interface shows the selected node's decision + progress in the caption", () => {
   const lines = renderMonitor(fleet(), "tree", 1).join("\n");
-  // Decision shown inline as "◇ <cond> ? <yes> : <no>", not a multi-line block.
+  // Decision shown as "◇ <cond> ? <yes> : <no>" in the caption under the diagram.
   assert.match(lines, /◇ acc ≥ 0\.80 \? ship : H-006/);
-  assert.doesNotMatch(lines, /yes → ship/); // no vertical yes/no block in the tree
-  assert.match(lines, /5\/30/); // inline progress (trials) rides on the node
+  assert.doesNotMatch(lines, /yes → ship/); // no vertical yes/no block
+  assert.match(lines, /5\/30/); // progress (trials) in the caption
+});
+
+test("renderTreeDiagram centers the root above box-drawing branches to children", () => {
+  const entries = [
+    entry({ id: "H-001", status: "OPEN", claim: "root" }),
+    entry({ id: "H-002", status: "OPEN", claim: "child a" }),
+    entry({ id: "H-003", status: "RUNNING", claim: "child b" }),
+  ];
+  const content = "## Hypothesis: H-002\n- **Parent:** H-001\n## Hypothesis: H-003\n- **Parent:** H-001\n";
+  const out = renderTreeDiagram(entries, content, "H-003").join("\n");
+  assert.match(out, /H-001/);                 // root present
+  assert.match(out, /[┴┼]/);                  // branch joins up to the parent
+  assert.match(out, /[┌┐]/);                  // and fans out to children
+  assert.match(out, /▸▶ H-003/);              // selected node uses the ▸ marker
+  // Root line appears above the child line.
+  const lines = renderTreeDiagram(entries, content, "H-003");
+  const rootRow = lines.findIndex((l) => l.includes("H-001"));
+  const childRow = lines.findIndex((l) => l.includes("H-002"));
+  assert.ok(rootRow >= 0 && childRow > rootRow, "root renders above its children");
 });
 
 test("detail interface shows the selected hypothesis detail + decision fork", () => {

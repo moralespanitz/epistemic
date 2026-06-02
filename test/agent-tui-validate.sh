@@ -26,7 +26,7 @@ chk "falsifier:" "$S" "detail shows the falsifier"
 
 agent-tui press ArrowLeft >/dev/null 2>&1; sleep 0.5
 S=$(agent-tui screenshot 2>/dev/null | strip)
-chk "◇" "$S" "← returns to the vertical decision tree (inline fork)"
+chk "↑↓ select" "$S" "← returns to the centered tree view"
 
 agent-tui kill >/dev/null 2>&1 || true
 echo "agent-tui: $PASS passed, $FAIL failed"

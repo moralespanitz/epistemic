@@ -9,7 +9,8 @@
  */
 import type { Fleet, ExperimentStat } from "../monitor/fleet.js";
 import type { HypothesisEntry } from "../state/repo.js";
-import { renderResearchTree, parseConditionalPlans } from "./tree.js";
+import { parseConditionalPlans } from "./tree.js";
+import { renderTreeDiagram } from "./diagram.js";
 
 export type MonitorMode = "tree" | "detail";
 
@@ -39,21 +40,28 @@ function header(fleet: Fleet): string {
 }
 
 function treeInterface(fleet: Fleet, selectedId?: string): string[] {
-  // Build inline progress for each node so the vertical tree IS the todo list:
-  // status, trials, cost, and an accuracy sparkline ride to the right of the node.
-  const meta: Record<string, string> = {};
-  for (const s of fleet.stats) {
-    const parts: string[] = [];
-    if (s.trialsTotal > 0) parts.push(`${s.trialsDone}/${s.trialsTotal}`);
-    if (s.spent > 0) parts.push(`$${s.spent.toFixed(0)}`);
-    if (s.accSeries.length) parts.push(`acc ${sparkline(s.accSeries)}`);
-    if (parts.length) meta[s.id] = parts.join(" ");
-  }
-
   const lines = [header(fleet), ""];
   lines.push("  ↑↓ select · → open · enter actions · /monitor off to chat");
   lines.push("");
-  for (const l of renderResearchTree(fleet.entries, fleet.hypothesesContent, {}, selectedId, meta)) lines.push(l);
+
+  // Centered top-down tree diagram (root on top, children fan out below).
+  for (const l of renderTreeDiagram(fleet.entries, fleet.hypothesesContent, selectedId)) lines.push(l);
+
+  // Caption for the selected node: claim + decision + live progress. Keeps the
+  // diagram nodes compact while still showing the detail at a glance.
+  const sel = fleet.entries.find((e) => e.id === selectedId);
+  if (sel) {
+    const icon = STATUS_ICON[sel.status] ?? "?";
+    const stat = fleet.stats.find((s) => s.id === sel.id);
+    const plan = parseConditionalPlans(fleet.hypothesesContent).get(sel.id);
+    lines.push("");
+    lines.push(`${icon} ${sel.id}  ${sel.claim.slice(0, 60)}`);
+    if (stat && (stat.trialsTotal > 0 || stat.spent > 0)) {
+      const acc = stat.accSeries.length ? `  acc ${sparkline(stat.accSeries)}` : "";
+      lines.push(`   ${stat.trialsDone}/${stat.trialsTotal} trials · $${stat.spent.toFixed(0)}/$${sel.costCap}${acc}`);
+    }
+    if (plan) lines.push(`   ◇ ${plan.condition} ? ${plan.ifTrue} : ${plan.ifFalse}`);
+  }
   return lines;
 }
 
