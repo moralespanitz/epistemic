@@ -38,6 +38,72 @@ export function splitRects(n: number, x: number, y: number, w: number, h: number
   ];
 }
 
+/**
+ * A recursive pane: either a leaf (its own `lines`) or a parent that subdivides
+ * its inner area among `children` — giving the n-tree of subagents real depth.
+ */
+export interface PaneTree {
+  title: string;
+  lines?: string[];
+  children?: PaneTree[];
+}
+
+/** Tile pre-rendered blocks (one per rect) into a single w×h buffer. */
+export function composeBlocks(blocks: string[][], rects: Rect[], w: number, h: number): string[] {
+  const out: string[] = [];
+  for (let y = 0; y < h; y++) {
+    const segs = rects
+      .map((r, i) => (y >= r.y && y < r.y + r.h ? { x: r.x, line: blocks[i][y - r.y] } : null))
+      .filter((s): s is { x: number; line: string } => s !== null)
+      .sort((p, q) => p.x - q.x)
+      .map((s) => s.line);
+    out.push(segs.join("").slice(0, w).padEnd(w, " "));
+  }
+  return out;
+}
+
+/** Minimum inner area worth subdividing further; below this we render a leaf. */
+const MIN_SPLIT_W = 14;
+const MIN_SPLIT_H = 5;
+
+/**
+ * Render a pane tree into an exact w×h boxed block. Parents subdivide their
+ * inner area among children (recursively); when the inner area gets too small
+ * to stay readable, a parent falls back to listing its children as text.
+ */
+export function renderPaneTree(node: PaneTree, w: number, h: number): string[] {
+  if (w < 2 || h < 2) return Array.from({ length: Math.max(0, h) }, () => " ".repeat(Math.max(0, w)));
+  const innerW = w - 2;
+  const innerH = h - 2;
+  const label = ` ${node.title} `.slice(0, innerW);
+  const top = "┌" + label + "─".repeat(innerW - label.length) + "┐";
+  const bottom = "└" + "─".repeat(innerW) + "┘";
+
+  let inner: string[];
+  const kids = node.children ?? [];
+  if (kids.length > 0 && innerW >= MIN_SPLIT_W && innerH >= MIN_SPLIT_H) {
+    const rects = splitRects(kids.length, 0, 0, innerW, innerH);
+    const blocks = rects.map((r, i) => renderPaneTree(kids[i], r.w, r.h));
+    inner = composeBlocks(blocks, rects, innerW, innerH);
+  } else {
+    // Leaf (or too-small parent): show lines, or a compact child summary.
+    const lines = node.lines ?? kids.map((k) => `• ${k.title}`);
+    inner = Array.from({ length: innerH }, (_, r) => {
+      const raw = lines[r] ?? "";
+      return raw.length > innerW ? raw.slice(0, innerW) : raw + " ".repeat(innerW - raw.length);
+    });
+  }
+  return [top, ...inner.map((l) => "│" + l + "│"), bottom];
+}
+
+/** Tile a forest of pane trees across a w×h region (the top-level split). */
+export function renderForest(nodes: PaneTree[], w: number, h: number): string[] {
+  if (nodes.length === 0) return Array.from({ length: h }, () => " ".repeat(w));
+  const rects = splitRects(nodes.length, 0, 0, w, h);
+  const blocks = rects.map((r, i) => renderPaneTree(nodes[i], r.w, r.h));
+  return composeBlocks(blocks, rects, w, h);
+}
+
 /** Render one pane as a boxed block of exactly `w`×`h` characters (plain). */
 export function renderPaneBlock(pane: PaneContent, w: number, h: number): string[] {
   if (w < 2 || h < 2) return Array.from({ length: Math.max(0, h) }, () => " ".repeat(Math.max(0, w)));

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { splitRects, renderPanes, renderPaneBlock, type PaneContent } from "../src/research/panes.js";
+import { splitRects, renderPanes, renderPaneBlock, renderForest, renderPaneTree, type PaneContent, type PaneTree } from "../src/research/panes.js";
 
 const pane = (title: string): PaneContent => ({ title, lines: ["line one", "line two"] });
 
@@ -45,4 +45,32 @@ test("renderPanes places every pane's title somewhere in the buffer", () => {
   const titles = ["alpha", "beta", "gamma", "delta"];
   const out = renderPanes(titles.map(pane), 120, 24).join("\n");
   for (const t of titles) assert.match(out, new RegExp(t));
+});
+
+test("renderPaneTree nests children inside the parent box (n-tree depth)", () => {
+  const tree: PaneTree = {
+    title: "EXP",
+    children: [
+      { title: "varA", lines: ["a"] },
+      { title: "varB", children: [{ title: "seed1", lines: ["s"] }, { title: "seed2", lines: ["s"] }] },
+    ],
+  };
+  const block = renderPaneTree(tree, 80, 20);
+  assert.equal(block.length, 20);
+  for (const row of block) assert.equal(row.length, 80);
+  const joined = block.join("\n");
+  // Parent, child, and grandchild titles all present → three levels deep.
+  for (const t of ["EXP", "varA", "varB", "seed1", "seed2"]) assert.match(joined, new RegExp(t));
+});
+
+test("renderForest tiles trees and stays exactly w×h", () => {
+  const forest: PaneTree[] = [
+    { title: "H1", children: [{ title: "v1", lines: ["x"] }, { title: "v2", lines: ["y"] }] },
+    { title: "H2", children: [{ title: "v3", lines: ["z"] }] },
+  ];
+  const out = renderForest(forest, 100, 30);
+  assert.equal(out.length, 30);
+  for (const line of out) assert.equal(line.length, 100);
+  assert.match(out.join("\n"), /H1/);
+  assert.match(out.join("\n"), /v3/);
 });

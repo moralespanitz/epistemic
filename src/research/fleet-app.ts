@@ -12,7 +12,7 @@
  * The layout/render core (panes.ts) is exactly what the real version would use.
  */
 import { loadFleet } from "../monitor/fleet.js";
-import { renderPanes, type PaneContent } from "./panes.js";
+import { renderForest, type PaneTree } from "./panes.js";
 
 const ESC = "\x1b[";
 const ALT_ON = `${ESC}?1049h`, ALT_OFF = `${ESC}?1049l`;
@@ -30,6 +30,7 @@ interface SubAgent {
   total: number;
   status: "running" | "shipped" | "killed";
   acc: number;
+  subs?: SubAgent[]; // sub-subagents — the third level of the tree
 }
 interface ExpNode {
   id: string;
@@ -38,25 +39,30 @@ interface ExpNode {
   kids: SubAgent[];
 }
 
-function bar(p: number, width = 10): string {
+function bar(p: number, width = 8): string {
   const filled = Math.round(p * width);
   return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
-function paneFor(node: ExpNode): PaneContent {
-  const lines = [
-    node.claim.slice(0, 40),
-    `stage: ${node.stage}`,
-    "",
-  ];
-  for (const k of node.kids) {
-    const trials = `${Math.round(k.progress * k.total)}/${k.total}`;
-    const tag = k.status === "shipped" ? "✓ ship" : k.status === "killed" ? "✗ kill" : bar(k.progress, 8);
-    const spark = BAR[Math.min(7, Math.round(k.acc * 7))];
-    lines.push(`${k.label.padEnd(9)} ${tag}  ${trials.padStart(5)} ${spark} [${k.sandbox}]`);
+/** A subagent → its own pane (leaf, or a parent of sub-subagents). */
+function subPane(k: SubAgent): PaneTree {
+  const trials = `${Math.round(k.progress * k.total)}/${k.total}`;
+  const tag = k.status === "shipped" ? "✓ ship" : k.status === "killed" ? "✗ kill" : bar(k.progress);
+  const spark = BAR[Math.min(7, Math.round(k.acc * 7))];
+  const title = `${k.label} [${k.sandbox}]`;
+  if (k.subs?.length) {
+    return { title, children: k.subs.map(subPane) };
   }
+  return { title, lines: [`${tag} ${trials}`, `acc ${spark}`] };
+}
+
+/** An experiment → a pane subdividing into its child subagents. */
+function expPane(node: ExpNode): PaneTree {
   const alive = node.kids.filter((k) => k.status === "running").length;
-  return { title: `${node.id}  (${alive}↻ ${node.kids.length - alive}■)`, lines };
+  return {
+    title: `${node.id}  ${node.stage}  (${alive}↻ ${node.kids.length - alive}■)`,
+    children: node.kids.map(subPane),
+  };
 }
 
 export async function runFleetApp(cwd: string): Promise<void> {
@@ -68,42 +74,50 @@ export async function runFleetApp(cwd: string): Promise<void> {
   const seed = inFlight.length ? inFlight : fleet.entries.slice(0, 4);
   const nodes: ExpNode[] = (seed.length ? seed : [{ id: "RD-A-H1", claim: "demo hypothesis", status: "RUNNING" } as any]).map((e, i) => {
     const kidCount = 2 + (i % 3); // 2–4 parallel child subagents per experiment
-    const kids: SubAgent[] = Array.from({ length: kidCount }, (_, j) => ({
+    const mkAgent = (j: number, total: number): SubAgent => ({
       label: VARIANTS[(i + j) % VARIANTS.length],
       sandbox: SANDBOXES[(i + j) % SANDBOXES.length],
       progress: 0.02 + ((i * 7 + j * 13) % 20) / 100,
-      total: 30,
+      total,
       status: "running",
       acc: 0.5 + ((i + j) % 5) / 10,
-    }));
+    });
+    const kids: SubAgent[] = Array.from({ length: kidCount }, (_, j) => mkAgent(j, 30));
+    // The first child is a coordinator that itself fans out into sub-subagents
+    // (the third level of the tree): e.g. a variant exploring two seeds.
+    kids[0].subs = [mkAgent(10, 15), mkAgent(11, 15)];
     return { id: e.id, claim: e.claim, stage: e.status === "RUNNING" ? "experiment-execution" : "preregistration", kids };
   });
 
   let stop = false;
   let tick = 0;
 
+  const advance = (k: SubAgent) => {
+    if (k.subs) k.subs.forEach(advance); // sub-subagents run in parallel too
+    if (k.status !== "running") return;
+    // Parallel, independent progress; epistemic kill if a variant stalls/diverges.
+    k.progress = Math.min(1, k.progress + 0.03 + Math.random() * 0.04);
+    k.acc = Math.max(0, Math.min(1, k.acc + (Math.random() - 0.45) * 0.05));
+    if (k.acc < 0.35 && k.progress > 0.3) k.status = "killed";       // diverged → killed
+    else if (k.progress >= 1) k.status = k.acc >= 0.6 ? "shipped" : "killed";
+  };
+
   const step = () => {
     tick++;
-    for (const node of nodes) {
-      for (const k of node.kids) {
-        if (k.status !== "running") continue;
-        // Parallel, independent progress; epistemic kill if a variant stalls/diverges.
-        k.progress = Math.min(1, k.progress + 0.03 + Math.random() * 0.04);
-        k.acc = Math.max(0, Math.min(1, k.acc + (Math.random() - 0.45) * 0.05));
-        if (k.acc < 0.35 && k.progress > 0.3) k.status = "killed";       // diverged → killed
-        else if (k.progress >= 1) k.status = k.acc >= 0.6 ? "shipped" : "killed";
-      }
-    }
+    for (const node of nodes) node.kids.forEach(advance);
   };
 
   const draw = () => {
     const w = out.columns ?? 100;
     const h = out.rows ?? 40;
-    const shipped = nodes.flatMap((n) => n.kids).filter((k) => k.status === "shipped").length;
-    const killed = nodes.flatMap((n) => n.kids).filter((k) => k.status === "killed").length;
-    const running = nodes.flatMap((n) => n.kids).filter((k) => k.status === "running").length;
-    const header = `Ξ epistemic · fleet (POC)   ${running}↻ running · ${shipped}✓ shipped · ${killed}✗ killed   subagents in parallel sandboxes   ·  q quit`;
-    const grid = renderPanes(nodes.map(paneFor), w, h - 1);
+    const flat: SubAgent[] = [];
+    const collect = (k: SubAgent) => { flat.push(k); k.subs?.forEach(collect); };
+    nodes.forEach((n) => n.kids.forEach(collect));
+    const shipped = flat.filter((k) => k.status === "shipped").length;
+    const killed = flat.filter((k) => k.status === "killed").length;
+    const running = flat.filter((k) => k.status === "running").length;
+    const header = `Ξ epistemic · fleet (POC)   ${running}↻ running · ${shipped}✓ shipped · ${killed}✗ killed   subagent tree in parallel sandboxes   ·  q quit`;
+    const grid = renderForest(nodes.map(expPane), w, h - 1);
     out.write(HOME + header.slice(0, w) + "\n" + grid.join("\n"));
   };
 
