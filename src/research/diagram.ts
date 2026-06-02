@@ -22,12 +22,20 @@ interface Block { lines: string[]; width: number; center: number; }
 // .length would over-pad. visibleWidth ignores the escape sequences.
 const padRight = (s: string, w: number): string => s + " ".repeat(Math.max(0, w - visibleWidth(s)));
 
-function makeLabel(e: HypothesisEntry, selectedId?: string): string {
+/** Center a string within a visible width (pad both sides). */
+function center(s: string, w: number): string {
+  const pad = Math.max(0, w - visibleWidth(s));
+  const left = Math.floor(pad / 2);
+  return " ".repeat(left) + s + " ".repeat(pad - left);
+}
+
+/** A node is 1–2 centered lines: the id, plus an optional live-state sub-line. */
+function nodeHeader(e: HypothesisEntry, selectedId: string | undefined, sub?: string): string[] {
   const icon = STATUS_ICON[e.status] ?? "?";
   const selected = e.id === selectedId;
   const text = `${selected ? "▸" : "●"}${icon} ${e.id}`;
-  // Selected node pops in cyan; otherwise color by status (green/yellow/red/gray).
-  return selected ? cyan(text) : byStatus(e.status, text);
+  const top = selected ? cyan(text) : byStatus(e.status, text);
+  return sub ? [top, dim(sub)] : [top];
 }
 
 const GAP = 3; // horizontal space between adjacent sibling subtrees
@@ -37,19 +45,21 @@ function layout(
   childrenOf: Map<string, string[]>,
   byId: Map<string, HypothesisEntry>,
   selectedId: string | undefined,
+  sub: Record<string, string>,
   seen: Set<string>,
 ): Block {
   const e = byId.get(id)!;
-  const label = makeLabel(e, selectedId);
+  const header = nodeHeader(e, selectedId, sub[id]);
+  const headerW = Math.max(...header.map(visibleWidth));
+  const headerCentered = header.map((l) => center(l, headerW)); // each line centered in the node box
   const kids = (childrenOf.get(id) ?? []).filter((k) => !seen.has(k));
   kids.forEach((k) => seen.add(k));
 
-  const labelW = visibleWidth(label);
   if (kids.length === 0) {
-    return { lines: [label], width: labelW, center: Math.floor((labelW - 1) / 2) };
+    return { lines: headerCentered, width: headerW, center: Math.floor((headerW - 1) / 2) };
   }
 
-  const blocks = kids.map((k) => layout(k, childrenOf, byId, selectedId, seen));
+  const blocks = kids.map((k) => layout(k, childrenOf, byId, selectedId, sub, seen));
 
   // Lay child subtrees side by side, separated by GAP.
   const height = Math.max(...blocks.map((b) => b.lines.length));
@@ -87,19 +97,20 @@ function layout(
   }
   let connRow = dim(conn.join(""));
 
-  // Place the label centered over parentCenter; if it would start left of 0,
-  // shift the whole child block (and connector) right to make room.
-  let labelStart = parentCenter - Math.floor((labelW - 1) / 2);
-  const shift = labelStart < 0 ? -labelStart : 0;
+  // Center the (1–2 line) header block over parentCenter; if it would start
+  // left of 0, shift the whole child block (and connector) right to make room.
+  let headerStart = parentCenter - Math.floor((headerW - 1) / 2);
+  const shift = headerStart < 0 ? -headerStart : 0;
   const sp = " ".repeat(shift);
   const shiftedChildRows = childRows.map((r) => sp + r);
   connRow = sp + connRow;
   parentCenter += shift;
-  labelStart = parentCenter - Math.floor((labelW - 1) / 2);
-  const labelRow = " ".repeat(labelStart) + label;
+  headerStart = parentCenter - Math.floor((headerW - 1) / 2);
+  const headerRows = headerCentered.map((l) => " ".repeat(headerStart) + l);
 
-  const blockWidth = Math.max(...[labelRow, connRow, ...shiftedChildRows].map((r) => visibleWidth(r)));
-  const lines = [labelRow, connRow, ...shiftedChildRows].map((r) => padRight(r, blockWidth));
+  const all = [...headerRows, connRow, ...shiftedChildRows];
+  const blockWidth = Math.max(...all.map((r) => visibleWidth(r)));
+  const lines = all.map((r) => padRight(r, blockWidth));
   return { lines, width: blockWidth, center: parentCenter };
 }
 
@@ -110,6 +121,7 @@ export function renderTreeDiagram(
   entries: HypothesisEntry[],
   content: string,
   selectedId?: string,
+  sub: Record<string, string> = {},
 ): string[] {
   if (entries.length === 0) return ["No hypotheses yet. Describe a research idea to begin."];
   const byId = new Map(entries.map((e) => [e.id, e]));
@@ -127,7 +139,7 @@ export function renderTreeDiagram(
   roots.forEach((root, i) => {
     if (seen.has(root.id)) return;
     seen.add(root.id);
-    const block = layout(root.id, childrenOf, byId, selectedId, seen);
+    const block = layout(root.id, childrenOf, byId, selectedId, sub, seen);
     if (i > 0) out.push("");
     out.push(...block.lines);
   });

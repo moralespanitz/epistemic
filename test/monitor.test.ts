@@ -27,7 +27,7 @@ function fleet(): Fleet {
   return {
     entries,
     hypothesesContent: "## Hypothesis: H-004\n- **Decision:** acc ≥ 0.80 → ship | else → H-006 pivot\n",
-    stats: entries.map((e) => ({ id: e.id, claim: e.claim, status: e.status, computeTarget: e.computeTarget, trialsDone: 5, trialsTotal: 30, costSeries: [1, 2], accSeries: [0.6, 0.7], spent: 4, costCap: e.costCap })),
+    stats: entries.map((e) => ({ id: e.id, claim: e.claim, status: e.status, computeTarget: e.computeTarget, trialsDone: 5, trialsTotal: 30, costSeries: [1, 2], accSeries: [0.6, 0.7], spent: 4, costCap: e.costCap, hasPrereg: true, hasJudgeLock: true, hasBaseline: false, hasSmokes: true, inResults: false })),
     totalSpent: 8, totalCap: 130, running: 1, shipped: 1, killed: 0,
   };
 }

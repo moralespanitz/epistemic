@@ -5,7 +5,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { loadHypotheses, getHypothesisSpend, type HypothesisEntry } from "../state/repo.js";
+import { loadHypotheses, getHypothesisSpend, loadBaselines, fileExists, type HypothesisEntry } from "../state/repo.js";
 
 export interface ExperimentStat {
   id: string;
@@ -18,6 +18,12 @@ export interface ExperimentStat {
   accSeries: number[];
   spent: number;
   costCap: number;
+  // Live pipeline artifacts — what exists on disk for this hypothesis.
+  hasPrereg: boolean;
+  hasJudgeLock: boolean;
+  hasBaseline: boolean;
+  hasSmokes: boolean;
+  inResults: boolean;
 }
 
 export interface Fleet {
@@ -39,15 +45,25 @@ async function safeRead(path: string): Promise<string | null> {
 export async function loadFleet(cwd: string): Promise<Fleet> {
   const entries = await loadHypotheses(cwd);
   const hypothesesContent = (await safeRead(join(cwd, "HYPOTHESES.md"))) ?? "";
+  const resultsContent = (await safeRead(join(cwd, "RESULTS.md"))) ?? "";
+  const baselines = await loadBaselines(cwd);
 
   const stats: ExperimentStat[] = [];
   for (const e of entries) {
     const spent = await getHypothesisSpend(cwd, e.id);
-    const tel = await safeRead(join(cwd, "experiments", e.id, "smokes", "telemetry.jsonl"));
+    const expDir = join(cwd, "experiments", e.id);
+    const tel = await safeRead(join(expDir, "smokes", "telemetry.jsonl"));
     const points = tel
       ? tel.split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean) as any[]
       : [];
     const last = points[points.length - 1];
+    const [hasPrereg, hasJudgeLock, hasSmokeStatus] = await Promise.all([
+      fileExists(join(expDir, "prereg.md")),
+      fileExists(join(expDir, "judge.lock")),
+      fileExists(join(expDir, "smokes", "run-status.json")),
+    ]);
+    const ref = (e.baselineRef || "").toLowerCase();
+    const hasBaseline = !!ref && baselines.some((b) => b.name.toLowerCase().includes(ref) || ref.includes(b.name.toLowerCase()));
     stats.push({
       id: e.id,
       claim: e.claim,
@@ -59,6 +75,11 @@ export async function loadFleet(cwd: string): Promise<Fleet> {
       accSeries: points.map((p) => p.acc).filter((a) => typeof a === "number"),
       spent,
       costCap: e.costCap,
+      hasPrereg,
+      hasJudgeLock,
+      hasBaseline,
+      hasSmokes: hasSmokeStatus || points.length > 0,
+      inResults: !!resultsContent && resultsContent.includes(e.id),
     });
   }
 

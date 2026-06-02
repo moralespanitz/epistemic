@@ -12,7 +12,8 @@ import type { HypothesisEntry } from "../state/repo.js";
 import { parseConditionalPlans } from "./tree.js";
 import { renderTreeDiagram } from "./diagram.js";
 import { computeScore, xpToNextLevel } from "./score.js";
-import { bold, dim, gold, green, yellow, red, gray, byStatus, costBar } from "../tui/color.js";
+import { deriveStage } from "../state/stage.js";
+import { bold, dim, gold, green, yellow, red, gray, cyan, byStatus, costBar } from "../tui/color.js";
 
 export type MonitorMode = "tree" | "detail";
 
@@ -46,28 +47,52 @@ function header(fleet: Fleet): string[] {
 
 function treeInterface(fleet: Fleet, selectedId?: string): string[] {
   const lines = [...header(fleet), ""];
-  lines.push(dim("  ↑↓ select · → open · enter actions · /monitor off to chat"));
+  lines.push(dim("  ↑↓ select · → open · enter actions · /idea new · /monitor off to chat"));
   lines.push("");
 
-  // Centered top-down tree diagram (root on top, children fan out below).
-  for (const l of renderTreeDiagram(fleet.entries, fleet.hypothesesContent, selectedId)) lines.push(l);
+  // Per-node live state, shown as a second line under each node in the diagram.
+  const sub: Record<string, string> = {};
+  for (const s of fleet.stats) sub[s.id] = nodeState(s);
 
-  // Caption for the selected node: claim + decision + live progress. Keeps the
-  // diagram nodes compact while still showing the detail at a glance.
+  // Centered top-down tree diagram (root on top, children fan out below).
+  for (const l of renderTreeDiagram(fleet.entries, fleet.hypothesesContent, selectedId, sub)) lines.push(l);
+
+  // Rich caption for the selected node: stage, gate checklist, next action,
+  // claim, progress, and decision — the full current state at a glance.
   const sel = fleet.entries.find((e) => e.id === selectedId);
-  if (sel) {
+  const stat = sel && fleet.stats.find((s) => s.id === sel.id);
+  if (sel && stat) {
     const icon = STATUS_ICON[sel.status] ?? "?";
-    const stat = fleet.stats.find((s) => s.id === sel.id);
     const plan = parseConditionalPlans(fleet.hypothesesContent).get(sel.id);
+    const report = deriveStage({
+      active: sel, spent: stat.spent,
+      hasPrereg: stat.hasPrereg, hasJudgeLock: stat.hasJudgeLock, hasBaseline: stat.hasBaseline,
+      hasSmokes: stat.hasSmokes, smokesSimulated: stat.hasSmokes && !(stat.hasPrereg && stat.hasJudgeLock),
+      hasConfirmedResults: stat.inResults,
+    });
+    const gate = (ok: boolean, name: string) => (ok ? green(`${name} ✓`) : dim(`${name} ✗`));
     lines.push("");
-    lines.push(`${byStatus(sel.status, `${icon} ${sel.id}`)}  ${sel.claim.slice(0, 60)}`);
-    if (stat && (stat.trialsTotal > 0 || stat.spent > 0)) {
+    lines.push(`${byStatus(sel.status, `${icon} ${sel.id}`)}  ${sel.claim.slice(0, 58)}`);
+    lines.push(`   ${dim("stage:")} ${cyan(report.stage)}   ${gate(stat.hasPrereg, "prereg")} · ${gate(stat.hasJudgeLock, "judge")} · ${gate(stat.hasBaseline, "baseline")} · ${gate(stat.inResults, "results")}`);
+    if (stat.trialsTotal > 0 || stat.spent > 0) {
       const acc = stat.accSeries.length ? `  acc ${gold(sparkline(stat.accSeries))}` : "";
       lines.push(dim(`   ${stat.trialsDone}/${stat.trialsTotal} trials · $${stat.spent.toFixed(0)}/$${sel.costCap}`) + acc);
     }
     if (plan) lines.push(`   ${gold("◇")} ${dim(`${plan.condition} ?`)} ${green(plan.ifTrue)} ${dim(":")} ${gray(plan.ifFalse)}`);
+    lines.push(`   ${bold(gold("→"))} ${report.nextAction.slice(0, 90)}`);
   }
   return lines;
+}
+
+/** Compact live-state sub-line shown under each diagram node. */
+function nodeState(s: ExperimentStat): string {
+  switch (s.status) {
+    case "RUNNING": return `${s.trialsDone}/${s.trialsTotal}`;
+    case "CONFIRMED": return "shipped";
+    case "KILLED": return "killed";
+    case "FALSIFIED": return "falsified";
+    default: return s.hasPrereg ? (s.hasBaseline ? "ready" : "prereg✓") : "needs prereg";
+  }
 }
 
 function detailInterface(fleet: Fleet, entry: HypothesisEntry, stat?: ExperimentStat): string[] {

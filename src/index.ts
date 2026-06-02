@@ -186,7 +186,7 @@ export default async function (pi: ExtensionAPI) {
   registerBaselineStalenessGate(pi as any);
 
   // ─── Tools ────────────────────────────────────────────────────
-  registerHuggingFaceTools(pi);
+  // registerHuggingFaceTools(pi);
 
   // ─── Spatial research views (inside real omp) ─────────────────
   registerResearchCommands(pi);
@@ -277,6 +277,29 @@ function registerResearchCommands(pi: any) {
         `then compare the results in a table and recommend which to promote.`;
       if (ctx.ui.setEditorText) ctx.ui.setEditorText(prompt);
       else ctx.ui.notify?.(prompt, "info");
+    },
+  });
+
+  // /idea — the interactive funnel: a raw prompt → a research plan you can
+  // brainstorm/refine → on APPROVE, the epistemic pipeline takes over. The agent
+  // does the reasoning; the gates enforce that nothing runs before prereg.
+  pi.registerCommand?.("idea", {
+    description: "Start a new idea → plan → approve → run the epistemic pipeline",
+    handler: async (args: string, ctx: any) => {
+      const idea = args.trim() || (await ctx.ui.input?.("Your research idea (one line)", "e.g. observation-time scoring beats retrieve-then-rank"))?.trim();
+      if (!idea) return;
+      const prompt = [
+        `New research idea: "${idea}"`,
+        ``,
+        `Walk me through the epistemic funnel — do NOT run any experiment yet:`,
+        `1. Brainstorm 2–3 competing, falsifiable hypotheses for this idea (one question at a time if you need to clarify scope).`,
+        `2. Recommend one, and draft its plan: claim, falsifier, baseline to beat, judge (model+prompt+temp+seed), sample size, cost cap, compute target, and the best-case conclusion.`,
+        `3. Show the plan and ask me to APPROVE or refine. Only after I approve: register it in HYPOTHESES.md as OPEN and run /skill:preregistration. The prereg gate keeps experiments blocked until that's done.`,
+      ].join("\n");
+      if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
+      else if (ctx.ui.setEditorText) ctx.ui.setEditorText(prompt);
+      else ctx.ui.notify?.(prompt, "info");
+      ctx.ui.notify?.("Ξ idea funnel started — brainstorm → plan → approve → run", "info");
     },
   });
 
