@@ -60,6 +60,18 @@ for s in epistemic research-question preregistration baseline-reproduction \
 done
 ```
 
+**Superpowers-style enforcement (hooks).** The plugin ships hooks that make the
+discipline active, not just available:
+- **SessionStart** — in a research repo (has `HYPOTHESES.md` / `experiments/`),
+  injects the epistemic preamble so every session routes through the mechanism
+  (silent elsewhere).
+- **PreToolUse (Bash)** — a *prereg gate*: if an experiment-shaped command runs
+  with no `experiments/<id>/prereg.md`, it interrupts and asks you to
+  pre-register first (flip `ASK→"deny"` in `hooks/prereg-gate.mjs` to hard-block).
+
+Installed via the marketplace automatically, or locally by adding `hooks/*.mjs`
+to `~/.claude/settings.json` (`SessionStart` + `PreToolUse` matcher `Bash`).
+
 Then Claude Code surfaces the skills automatically (or invoke one explicitly,
 e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
 (blocking experiments before prereg, judge-lock, cost ledger) lives in the pi
