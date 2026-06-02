@@ -8,5 +8,5 @@
   "quietStartup": true,
   "theme": "epistemic",
   "defaultProvider": "openrouter",
-  "defaultModel": "deepseek-v4-pro"
+  "defaultModel": "openrouter/deepseek/deepseek-v4-pro"
 }

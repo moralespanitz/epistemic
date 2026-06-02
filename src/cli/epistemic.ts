@@ -16,7 +16,9 @@ import epistemicExtension from "../index.js";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
 
-const DEFAULT_MODEL = "deepseek-v4-pro"; // openrouter — avoids Claude subscription billing
+// Fully-qualified openrouter id so it uses the OpenRouter provider (where you're
+// authed), not the direct DeepSeek provider. Avoids Claude subscription billing.
+const DEFAULT_MODEL = "openrouter/deepseek/deepseek-v4-pro";
 
 async function run() {
   const args = process.argv.slice(2);
