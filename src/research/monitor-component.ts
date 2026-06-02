@@ -5,6 +5,7 @@
  * TUI: real chat + a full interactive monitor view, both inside pi.
  */
 import type { Component, TUI } from "@earendil-works/pi-tui";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import { loadFleet, type Fleet } from "../monitor/fleet.js";
 import { renderMonitor, type MonitorMode } from "./monitor.js";
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "./monitor-nav.js";
@@ -46,7 +47,7 @@ export class MonitorComponent implements Component {
     }, 1500);
   }
 
-  render(_width: number): string[] {
+  render(width: number): string[] {
     const lines = renderMonitor(this.fleet, this.mode, this.idx);
     if (this.inAction) {
       lines.push("");
@@ -56,7 +57,10 @@ export class MonitorComponent implements Component {
       lines.push("");
       lines.push(dim("  ↑↓ select · → detail · ← tree · enter actions · q/esc back to chat"));
     }
-    return lines;
+    // Truncate to the actual render width — wide inline decision forks would
+    // otherwise overflow and crash pi ("Rendered line exceeds terminal width").
+    const w = Math.max(1, width);
+    return lines.map((l) => truncateToWidth(l, w));
   }
 
   handleInput(data: string): void {

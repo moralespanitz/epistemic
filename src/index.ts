@@ -10,7 +10,7 @@ import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons, loadBaselines, fileExists, type HypothesisEntry } from "./state/repo.js";
 import { deriveStage, renderStageBlock, type StageFacts } from "./state/stage.js";
-import { refreshEpistemicWidget, fitWidth } from "./tui/widget.js";
+import { refreshEpistemicWidget, linesWidget } from "./tui/widget.js";
 import { credentialStatus, credentialOptions, saveKey, KNOWN_KEYS } from "./credentials.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
@@ -43,7 +43,7 @@ async function showTree(ctx: any) {
   const content = (await safeReadFile(ctx.cwd, "HYPOTHESES.md")) ?? "";
   const active = getActiveHypothesis(entries);
   const lines = renderResearchTree(entries, content, {}, active?.id);
-  ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ research map  (/map off to hide · /view to cycle)", ...lines]), { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, linesWidget(["Ξ research map  (/map off to hide · /view to cycle)", ...lines]), { placement: "belowEditor" });
 }
 
 /** Render whichever research view is active (or clear it). Used by /view + the shortcut. */
@@ -66,7 +66,7 @@ async function renderCurrentView(ctx: any) {
       const spent = await getHypothesisSpend(ctx.cwd, e.id);
       return `  ${e.id} [${e.status}]  $${spent.toFixed(2)} / $${e.costCap}`;
     }));
-    ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ cost  (/view to cycle)", ...(lines.length ? lines : ["  no hypotheses yet"])]), { placement: "belowEditor" });
+    ctx.ui.setWidget?.(TREE_KEY, linesWidget(["Ξ cost  (/view to cycle)", ...(lines.length ? lines : ["  no hypotheses yet"])]), { placement: "belowEditor" });
     return;
   }
   ctx.ui.setWidget?.(TREE_KEY, undefined); // "off"
@@ -80,7 +80,7 @@ function cycleView(dir: number) {
 /** Re-render the interactive monitor widget from the cached fleet. */
 function rerenderMonitor(ctx: any) {
   if (!lastFleet) return;
-  ctx.ui.setWidget?.(TREE_KEY, fitWidth(renderMonitor(lastFleet, monitorMode, monitorIdx)), { placement: "belowEditor" });
+  ctx.ui.setWidget?.(TREE_KEY, linesWidget(renderMonitor(lastFleet, monitorMode, monitorIdx)), { placement: "belowEditor" });
 }
 
 const ACTION_LABELS: Record<string, ActionLabel> = {
@@ -242,7 +242,7 @@ function registerResearchCommands(pi: any) {
         ctx.ui.notify?.(`✓ ${argKey} saved to .env and applied`, "info");
         return;
       }
-      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
+      ctx.ui.setWidget?.(TREE_KEY, linesWidget(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
       const opts = credentialOptions();
       const choice = await ctx.ui.select?.("Set a credential", opts.map((o) => o.label));
       if (!choice) return;
@@ -251,7 +251,7 @@ function registerResearchCommands(pi: any) {
       const value = await ctx.ui.input?.(`Enter value for ${picked.key}`, "paste key (stored in .env)");
       if (!value) return;
       await saveKey(ctx.cwd, picked.key, value.trim());
-      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
+      ctx.ui.setWidget?.(TREE_KEY, linesWidget(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
       ctx.ui.notify?.(`✓ ${picked.key} saved (.env) and applied to this session`, "info");
     },
   });
@@ -280,7 +280,7 @@ function registerResearchCommands(pi: any) {
     handler: async (_args: string, ctx: any) => {
       const lessons = await loadLessons(ctx.cwd);
       const text = summarizeLessons(lessons);
-      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ lessons  (/lessons off to hide)", ...text.split("\n")]), { placement: "belowEditor" });
+      ctx.ui.setWidget?.(TREE_KEY, linesWidget(["Ξ lessons  (/lessons off to hide)", ...text.split("\n")]), { placement: "belowEditor" });
       if (ctx.ui.notify) ctx.ui.notify("Ξ cross-run lessons shown below", "info");
     },
   });

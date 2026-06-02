@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseKey, reduceNav, actionPrompt } from "../src/research/monitor-nav.js";
 import { renderMonitor } from "../src/research/monitor.js";
-import { fitWidth } from "../src/tui/widget.js";
+import { fitWidth, linesWidget } from "../src/tui/widget.js";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { Fleet } from "../src/monitor/fleet.js";
 import type { HypothesisEntry } from "../src/state/repo.js";
@@ -103,6 +103,19 @@ test("fitWidth clamps every line to the terminal width", () => {
   for (const line of fitWidth([wide, "short", "y".repeat(500)])) {
     // pi crashes on visible width > terminal — assert visible width, not code points.
     assert.ok(visibleWidth(line) <= limit, `visible width ${visibleWidth(line)} exceeds ${limit}`);
+  }
+});
+
+// Regression: pi crashed "Rendered line 7 exceeds terminal width (151 > 119)"
+// because widgets were clamped to stdout.columns (wide), not pi's real render
+// width. linesWidget must truncate to whatever width pi passes at render time.
+test("linesWidget truncates to the render width pi passes, not stdout.columns", () => {
+  const wide = "Ξ  ▶ H-004  " + "x".repeat(300) + "  ◇ acc ≥ 0.80 ? ship : H-006 pivot";
+  const component = linesWidget([wide])(); // factory() → Component
+  for (const w of [40, 80, 119]) {
+    for (const line of component.render(w)) {
+      assert.ok(visibleWidth(line) <= w, `visible width ${visibleWidth(line)} exceeds render width ${w}`);
+    }
   }
 });
 

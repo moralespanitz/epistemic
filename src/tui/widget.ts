@@ -4,11 +4,29 @@ import { loadHypotheses, getActiveHypothesis, getHypothesisSpend } from "../stat
 
 /**
  * Clamp widget lines to the terminal width. pi crashes if a widget renders a
- * line wider than the terminal — every setWidget payload must go through this.
+ * line wider than the terminal. NOTE: this uses process.stdout.columns, which
+ * can OVERESTIMATE pi's actual render width (pi reserves gutters / sidebars),
+ * so prefer linesWidget() for setWidget — it truncates at the true width.
  */
 export function fitWidth(lines: string[]): string[] {
   const w = Math.max(20, (process.stdout.columns ?? 80) - 2);
   return lines.map((l) => truncateToWidth(l, w));
+}
+
+/**
+ * Width-correct widget: returns a setWidget factory whose Component truncates
+ * each line to the ACTUAL render width pi passes at draw time. This is the only
+ * reliable way to avoid pi's "Rendered line exceeds terminal width" crash —
+ * the real content width is unknown until render (stdout.columns lies).
+ */
+export function linesWidget(lines: string[]) {
+  return () => ({
+    render(width: number): string[] {
+      const w = Math.max(1, width);
+      return lines.map((l) => truncateToWidth(l, w));
+    },
+    invalidate() {},
+  });
 }
 
 const STATUS_ICON: Record<string, string> = {
@@ -52,7 +70,7 @@ export async function refreshEpistemicWidget(ctx: any, cwd: string, gates: strin
     const active  = getActiveHypothesis(entries);
     const spent   = active ? await getHypothesisSpend(cwd, active.id) : 0;
 
-    ctx.ui.setWidget?.("epistemic", fitWidth(buildEpistemicWidget(active, spent, gates)), { placement: "belowEditor" });
+    ctx.ui.setWidget?.("epistemic", linesWidget(buildEpistemicWidget(active, spent, gates)), { placement: "belowEditor" });
     ctx.ui.setStatus?.("epistemic", buildEpistemicStatus(active));
   } catch {}
 }
