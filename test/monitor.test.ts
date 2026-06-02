@@ -1,3 +1,6 @@
+// Render plain text for the structural assertions below; a dedicated test
+// re-enables color to verify the ANSI codes are actually emitted.
+process.env.NO_COLOR = "1";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseKey, reduceNav, actionPrompt } from "../src/research/monitor-nav.js";
@@ -136,6 +139,19 @@ test("linesWidget truncates to the render width pi passes, not stdout.columns", 
     for (const line of component.render(w)) {
       assert.ok(visibleWidth(line) <= w, `visible width ${visibleWidth(line)} exceeds render width ${w}`);
     }
+  }
+});
+
+test("monitor emits ANSI color + gamified header when color is enabled", () => {
+  delete process.env.NO_COLOR;
+  try {
+    const lines = renderMonitor(fleet(), "tree", 1).join("\n");
+    assert.match(lines, /\x1b\[/);          // ANSI escape codes present
+    assert.match(lines, /LV\.\d+ /);        // gamification: level + rank
+    assert.match(lines, /XP/);              // XP shown
+    assert.match(lines, /kill:ship/);       // discipline meter
+  } finally {
+    process.env.NO_COLOR = "1";
   }
 });
 

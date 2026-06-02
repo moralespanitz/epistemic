@@ -8,7 +8,9 @@
  * claim / decision for the selected node is shown as a caption by the caller.
  */
 import type { HypothesisEntry } from "../state/repo.js";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { parseParentEdges } from "./tree.js";
+import { byStatus, cyan, dim } from "../tui/color.js";
 
 const STATUS_ICON: Record<string, string> = {
   OPEN: "○", RUNNING: "▶", FALSIFIED: "✗", CONFIRMED: "✓", KILLED: "☓",
@@ -16,12 +18,16 @@ const STATUS_ICON: Record<string, string> = {
 
 interface Block { lines: string[]; width: number; center: number; }
 
-const padRight = (s: string, w: number): string => s + " ".repeat(Math.max(0, w - s.length));
+// Pad to a target VISIBLE width — labels may contain ANSI color codes, so plain
+// .length would over-pad. visibleWidth ignores the escape sequences.
+const padRight = (s: string, w: number): string => s + " ".repeat(Math.max(0, w - visibleWidth(s)));
 
 function makeLabel(e: HypothesisEntry, selectedId?: string): string {
   const icon = STATUS_ICON[e.status] ?? "?";
-  const bullet = e.id === selectedId ? "▸" : "●";
-  return `${bullet}${icon} ${e.id}`;
+  const selected = e.id === selectedId;
+  const text = `${selected ? "▸" : "●"}${icon} ${e.id}`;
+  // Selected node pops in cyan; otherwise color by status (green/yellow/red/gray).
+  return selected ? cyan(text) : byStatus(e.status, text);
 }
 
 const GAP = 3; // horizontal space between adjacent sibling subtrees
@@ -38,8 +44,9 @@ function layout(
   const kids = (childrenOf.get(id) ?? []).filter((k) => !seen.has(k));
   kids.forEach((k) => seen.add(k));
 
+  const labelW = visibleWidth(label);
   if (kids.length === 0) {
-    return { lines: [label], width: label.length, center: Math.floor((label.length - 1) / 2) };
+    return { lines: [label], width: labelW, center: Math.floor((labelW - 1) / 2) };
   }
 
   const blocks = kids.map((k) => layout(k, childrenOf, byId, selectedId, seen));
@@ -78,20 +85,20 @@ function layout(
     conn[maxC] = "┐";
     conn[parentCenter] = childCenters.includes(parentCenter) ? "┼" : "┴";
   }
-  let connRow = conn.join("");
+  let connRow = dim(conn.join(""));
 
   // Place the label centered over parentCenter; if it would start left of 0,
   // shift the whole child block (and connector) right to make room.
-  let labelStart = parentCenter - Math.floor((label.length - 1) / 2);
+  let labelStart = parentCenter - Math.floor((labelW - 1) / 2);
   const shift = labelStart < 0 ? -labelStart : 0;
   const sp = " ".repeat(shift);
   const shiftedChildRows = childRows.map((r) => sp + r);
   connRow = sp + connRow;
   parentCenter += shift;
-  labelStart = parentCenter - Math.floor((label.length - 1) / 2);
+  labelStart = parentCenter - Math.floor((labelW - 1) / 2);
   const labelRow = " ".repeat(labelStart) + label;
 
-  const blockWidth = Math.max(labelRow.length, connRow.length, ...shiftedChildRows.map((r) => r.length));
+  const blockWidth = Math.max(...[labelRow, connRow, ...shiftedChildRows].map((r) => visibleWidth(r)));
   const lines = [labelRow, connRow, ...shiftedChildRows].map((r) => padRight(r, blockWidth));
   return { lines, width: blockWidth, center: parentCenter };
 }

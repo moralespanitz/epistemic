@@ -11,6 +11,8 @@ import type { Fleet, ExperimentStat } from "../monitor/fleet.js";
 import type { HypothesisEntry } from "../state/repo.js";
 import { parseConditionalPlans } from "./tree.js";
 import { renderTreeDiagram } from "./diagram.js";
+import { computeScore, xpToNextLevel } from "./score.js";
+import { bold, dim, gold, green, yellow, red, gray, byStatus, costBar } from "../tui/color.js";
 
 export type MonitorMode = "tree" | "detail";
 
@@ -26,22 +28,25 @@ function sparkline(series: number[], width = 10): string {
   return tail.map((v) => BLOCKS[span === 0 ? 0 : Math.round(((v - min) / span) * 7)]).join("");
 }
 
-function costBar(spent: number, cap: number, width = 14): string {
-  const pct = cap > 0 ? Math.min(Math.round((spent / cap) * 100), 100) : 0;
-  const filled = Math.round((pct / 100) * width);
-  return `[${"█".repeat(filled)}${"░".repeat(width - filled)} ${pct}%]`;
-}
-
-function header(fleet: Fleet): string {
-  return (
-    `Ξ epistemic · mission control   ${costBar(fleet.totalSpent, fleet.totalCap)} $${fleet.totalSpent.toFixed(2)}/$${fleet.totalCap}` +
-    `   ${fleet.running} running · ${fleet.shipped} shipped · ${fleet.killed} killed`
-  );
+/** Two-line gamified header: mission control + XP/rank/discipline. */
+function header(fleet: Fleet): string[] {
+  const sc = computeScore(fleet);
+  const counts =
+    `${yellow(`▶ ${fleet.running}`)}  ${green(`✓ ${fleet.shipped}`)}  ${red(`☓ ${fleet.killed}`)}`;
+  const toNext = xpToNextLevel(sc.xp);
+  const game =
+    `${bold(gold(`LV.${sc.level} ${sc.rank}`))}  ${gold(`★ ${sc.xp} XP`)}` +
+    (sc.badges.length ? `  ${sc.badges.join(" ")}` : "") +
+    `  ${dim(`discipline: ${sc.discipline} · kill:ship ${sc.ksRatio.toFixed(1)}:1 · ${toNext} XP → LV.${sc.level + 1}`)}`;
+  return [
+    `${bold(gold("Ξ epistemic · mission control"))}   ${costBar(fleet.totalSpent, fleet.totalCap)} ${dim(`$${fleet.totalSpent.toFixed(2)}/$${fleet.totalCap}`)}   ${counts}`,
+    game,
+  ];
 }
 
 function treeInterface(fleet: Fleet, selectedId?: string): string[] {
-  const lines = [header(fleet), ""];
-  lines.push("  ↑↓ select · → open · enter actions · /monitor off to chat");
+  const lines = [...header(fleet), ""];
+  lines.push(dim("  ↑↓ select · → open · enter actions · /monitor off to chat"));
   lines.push("");
 
   // Centered top-down tree diagram (root on top, children fan out below).
@@ -55,12 +60,12 @@ function treeInterface(fleet: Fleet, selectedId?: string): string[] {
     const stat = fleet.stats.find((s) => s.id === sel.id);
     const plan = parseConditionalPlans(fleet.hypothesesContent).get(sel.id);
     lines.push("");
-    lines.push(`${icon} ${sel.id}  ${sel.claim.slice(0, 60)}`);
+    lines.push(`${byStatus(sel.status, `${icon} ${sel.id}`)}  ${sel.claim.slice(0, 60)}`);
     if (stat && (stat.trialsTotal > 0 || stat.spent > 0)) {
-      const acc = stat.accSeries.length ? `  acc ${sparkline(stat.accSeries)}` : "";
-      lines.push(`   ${stat.trialsDone}/${stat.trialsTotal} trials · $${stat.spent.toFixed(0)}/$${sel.costCap}${acc}`);
+      const acc = stat.accSeries.length ? `  acc ${gold(sparkline(stat.accSeries))}` : "";
+      lines.push(dim(`   ${stat.trialsDone}/${stat.trialsTotal} trials · $${stat.spent.toFixed(0)}/$${sel.costCap}`) + acc);
     }
-    if (plan) lines.push(`   ◇ ${plan.condition} ? ${plan.ifTrue} : ${plan.ifFalse}`);
+    if (plan) lines.push(`   ${gold("◇")} ${dim(`${plan.condition} ?`)} ${green(plan.ifTrue)} ${dim(":")} ${gray(plan.ifFalse)}`);
   }
   return lines;
 }
@@ -69,11 +74,11 @@ function detailInterface(fleet: Fleet, entry: HypothesisEntry, stat?: Experiment
   const plan = parseConditionalPlans(fleet.hypothesesContent).get(entry.id);
   const icon = STATUS_ICON[entry.status] ?? "?";
   const lines = [
-    header(fleet),
+    ...header(fleet),
     "",
-    "  ← back · enter actions · /monitor off to chat",
+    dim("  ← back · enter actions · /monitor off to chat"),
     "",
-    `${icon} ${entry.id}  [${entry.status}]`,
+    `${byStatus(entry.status, `${icon} ${entry.id}  [${entry.status}]`)}`,
     `claim:     ${entry.claim}`,
     `falsifier: ${entry.falsifier}`,
     `target:    ${entry.computeTarget}    judge: ${entry.judgeRef ?? "—"}`,
@@ -96,7 +101,7 @@ function detailInterface(fleet: Fleet, entry: HypothesisEntry, stat?: Experiment
 /** Render the monitor in its current mode with the selected index highlighted. */
 export function renderMonitor(fleet: Fleet, mode: MonitorMode, selectedIdx: number): string[] {
   if (fleet.entries.length === 0) {
-    return [header(fleet), "", "  no hypotheses yet — describe a research idea to begin", "", "/monitor off to chat"];
+    return [...header(fleet), "", dim("  no hypotheses yet — describe a research idea to begin"), "", dim("/monitor off to chat")];
   }
   const idx = Math.max(0, Math.min(selectedIdx, fleet.entries.length - 1));
   const entry = fleet.entries[idx];
