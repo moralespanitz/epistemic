@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "epistemic",
+  "owner": {
+    "name": "Alexander Morales-Panitz",
+    "url": "https://github.com/moralespanitz"
+  },
+  "plugins": [
+    {
+      "name": "epistemic-skills",
+      "description": "Research-discipline skills: hypothesis → preregistration → baseline → experiment → statistical rigor → falsification → kill-or-ship. Works standalone in Claude Code; the hard gate enforcement lives in the epistemic pi agent.",
+      "source": "./",
+      "category": "workflow"
+    }
+  ]
+}

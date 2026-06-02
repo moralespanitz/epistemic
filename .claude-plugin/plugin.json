@@ -1,0 +1,22 @@
+{
+  "name": "epistemic-skills",
+  "version": "0.1.0",
+  "description": "Research-discipline skills for Claude Code: turn an idea into a falsifiable hypothesis, pre-register it, reproduce the baseline, run experiments, attack the result, and decide kill-or-ship. An add-on (pairs with the epistemic agent), not a replacement.",
+  "author": {
+    "name": "Alexander Morales-Panitz",
+    "email": "alexander@moralespanitz.com",
+    "url": "https://github.com/moralespanitz"
+  },
+  "homepage": "https://github.com/moralespanitz/epistemic",
+  "repository": "https://github.com/moralespanitz/epistemic",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "experiments",
+    "methodology",
+    "preregistration",
+    "evals",
+    "falsification",
+    "statistical-rigor"
+  ]
+}

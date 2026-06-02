@@ -34,6 +34,24 @@ epistemic           # the agent + epistemic discipline
 epistemic monitor   # full-screen interactive experiment monitor
 ```
 
+### …or just the skills, in Claude Code
+
+The same research-discipline skills are published as a Claude Code plugin —
+an **add-on**, like [superpowers](https://github.com/obra/superpowers), not a
+replacement. You get the methodology (`research-question`, `preregistration`,
+`baseline-reproduction`, … `kill-or-ship`) inside Claude Code without running
+the pi agent:
+
+```
+/plugin marketplace add moralespanitz/epistemic
+/plugin install epistemic-skills@epistemic
+```
+
+Then Claude Code surfaces the skills automatically (or invoke one explicitly,
+e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
+(blocking experiments before prereg, judge-lock, cost ledger) lives in the pi
+agent above — in Claude Code the skills are methodology guidance.
+
 ---
 
 ## How it works
