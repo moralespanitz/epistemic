@@ -9,6 +9,10 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
+
+// Instant enable/disable: `epistemic hooks off` drops this sentinel.
+if (existsSync(join(homedir(), ".claude", "epistemic-hooks.disabled"))) process.exit(0);
 
 let input = "";
 process.stdin.setEncoding("utf8");

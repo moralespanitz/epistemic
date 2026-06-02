@@ -72,6 +72,17 @@ discipline active, not just available:
 Installed via the marketplace automatically, or locally by adding `hooks/*.mjs`
 to `~/.claude/settings.json` (`SessionStart` + `PreToolUse` matcher `Bash`).
 
+Manage them with `epistemic hooks`:
+
+```bash
+epistemic hooks status          # what's installed / enabled, and any other hooks
+epistemic hooks on | off        # enable/disable instantly (no restart)
+epistemic hooks install|remove  # add/remove the epistemic hooks in settings.json
+epistemic hooks clean           # remove unused hooks (e.g. Superset) + prune empties
+```
+
+Every settings write backs up to `~/.claude/settings.json.bak` first.
+
 Then Claude Code surfaces the skills automatically (or invoke one explicitly,
 e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
 (blocking experiments before prereg, judge-lock, cost ledger) lives in the pi

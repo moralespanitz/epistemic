@@ -62,6 +62,12 @@ async function run() {
     return;
   }
 
+  if (args[0] === "hooks") {
+    const { runHooks } = await import("./hooks.js");
+    await runHooks(args.slice(1));
+    return;
+  }
+
   // Default to openrouter deepseek-v4-pro unless the user picks a model.
   // But only if its provider key is actually present — otherwise the agent
   // boots straight into "No API key found" and churns through fallbacks
