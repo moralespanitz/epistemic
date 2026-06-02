@@ -56,6 +56,12 @@ async function run() {
     return;
   }
 
+  if (args[0] === "fleet") {
+    const { runFleetApp } = await import("../research/fleet-app.js");
+    await runFleetApp(process.cwd());
+    return;
+  }
+
   // Default to openrouter deepseek-v4-pro unless the user picks a model.
   // But only if its provider key is actually present — otherwise the agent
   // boots straight into "No API key found" and churns through fallbacks
