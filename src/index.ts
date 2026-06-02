@@ -10,6 +10,7 @@ import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons } from "./state/repo.js";
 import { refreshEpistemicWidget, fitWidth } from "./tui/widget.js";
+import { credentialStatus, credentialOptions, saveKey, KNOWN_KEYS } from "./credentials.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "./research/monitor-nav.js";
@@ -225,6 +226,32 @@ function registerResearchCommands(pi: any) {
           else ctx.ui.notify?.(prompt, "info");
         }
       }
+    },
+  });
+
+  // /credentials — view and set provider/experiment keys from inside epistemic
+  // (saved to a gitignored .env, applied live). For the agent model, /login is best.
+  pi.registerCommand?.("credentials", {
+    description: "View or set API keys (OpenRouter, Anthropic, OpenAI, Google, HuggingFace, Modal)",
+    handler: async (args: string, ctx: any) => {
+      // `/credentials KEY value` sets directly; bare `/credentials` is interactive.
+      const [argKey, ...rest] = args.trim().split(/\s+/);
+      if (argKey && KNOWN_KEYS.some((k) => k.name === argKey) && rest.length) {
+        await saveKey(ctx.cwd, argKey, rest.join(" "));
+        ctx.ui.notify?.(`✓ ${argKey} saved to .env and applied`, "info");
+        return;
+      }
+      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
+      const opts = credentialOptions();
+      const choice = await ctx.ui.select?.("Set a credential", opts.map((o) => o.label));
+      if (!choice) return;
+      const picked = opts.find((o) => o.label === choice);
+      if (!picked) return;
+      const value = await ctx.ui.input?.(`Enter value for ${picked.key}`, "paste key (stored in .env)");
+      if (!value) return;
+      await saveKey(ctx.cwd, picked.key, value.trim());
+      ctx.ui.setWidget?.(TREE_KEY, fitWidth(["Ξ credentials  (/credentials off to hide)", ...credentialStatus()]), { placement: "belowEditor" });
+      ctx.ui.notify?.(`✓ ${picked.key} saved (.env) and applied to this session`, "info");
     },
   });
 
