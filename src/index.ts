@@ -8,7 +8,8 @@ import { registerClaimInterceptor } from "./gates/claim-interceptor.js";
 import { registerKillCriteriaGate } from "./gates/kill-criteria.js";
 import { registerBaselineStalenessGate } from "./gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "./extensions/huggingface.js";
-import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons } from "./state/repo.js";
+import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons, loadBaselines, fileExists, type HypothesisEntry } from "./state/repo.js";
+import { deriveStage, renderStageBlock, type StageFacts } from "./state/stage.js";
 import { refreshEpistemicWidget, fitWidth } from "./tui/widget.js";
 import { credentialStatus, credentialOptions, saveKey, KNOWN_KEYS } from "./credentials.js";
 import { renderResearchTree } from "./research/tree.js";
@@ -342,6 +343,35 @@ async function safeReadFile(cwd: string, name: string): Promise<string | null> {
   } catch { return null; }
 }
 
+/**
+ * Gather the on-disk facts the stage router needs for the active hypothesis.
+ * Keeps deriveStage() pure (this does the I/O, that does the reasoning).
+ */
+async function gatherStageFacts(cwd: string, active: HypothesisEntry, spent: number): Promise<StageFacts> {
+  const expDir = `experiments/${active.id}`;
+  const [hasPrereg, hasJudgeLock, smokeStatus, smokeTelemetry, baselines, repo] = await Promise.all([
+    fileExists(`${cwd}/${expDir}/prereg.md`),
+    fileExists(`${cwd}/${expDir}/judge.lock`),
+    fileExists(`${cwd}/${expDir}/smokes/run-status.json`),
+    fileExists(`${cwd}/${expDir}/smokes/telemetry.jsonl`),
+    loadBaselines(cwd),
+    loadRepoState(cwd),
+  ]);
+
+  const hasSmokes = smokeStatus || smokeTelemetry;
+  // Smoke data is "simulated" unless a real run produced it: a real run leaves a
+  // prereg + judge.lock. Stub/placeholder smokes appear without that contract.
+  const smokesSimulated = hasSmokes && !(hasPrereg && hasJudgeLock);
+
+  // Baseline is "reproduced" if BASELINES.md names the baseline this hypothesis compares to.
+  const ref = (active.baselineRef || "").toLowerCase();
+  const hasBaseline = !!ref && baselines.some(b => b.name.toLowerCase().includes(ref) || ref.includes(b.name.toLowerCase()));
+
+  const hasConfirmedResults = !!repo.results && repo.results.includes(active.id);
+
+  return { active, spent, hasPrereg, hasJudgeLock, hasBaseline, hasSmokes, smokesSimulated, hasConfirmedResults };
+}
+
 function setupBeforeAgentStart(pi: any) {
   pi.on("before_agent_start", async (event: any, _ctx: any) => {
     try {
@@ -357,7 +387,14 @@ function setupBeforeAgentStart(pi: any) {
       const spent = await getHypothesisSpend(event.cwd, active.id);
       const pct = active.costCap > 0 ? Math.round((spent / active.costCap) * 100) : 0;
 
+      // Router: tell the agent where it is and what to do next, plus any
+      // protocol inconsistencies — so "continue"/"proceed" is deterministic.
+      const facts = await gatherStageFacts(event.cwd, active, spent);
+      const stageBlock = renderStageBlock(deriveStage(facts));
+
       const summary = [
+        stageBlock,
+        ``,
         `## Epistemic runtime state`,
         `- Active hypothesis: ${active.id}`,
         `- Claim: ${active.claim.slice(0, 100)}`,

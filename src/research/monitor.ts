@@ -39,18 +39,21 @@ function header(fleet: Fleet): string {
 }
 
 function treeInterface(fleet: Fleet, selectedId?: string): string[] {
+  // Build inline progress for each node so the vertical tree IS the todo list:
+  // status, trials, cost, and an accuracy sparkline ride to the right of the node.
+  const meta: Record<string, string> = {};
+  for (const s of fleet.stats) {
+    const parts: string[] = [];
+    if (s.trialsTotal > 0) parts.push(`${s.trialsDone}/${s.trialsTotal}`);
+    if (s.spent > 0) parts.push(`$${s.spent.toFixed(0)}`);
+    if (s.accSeries.length) parts.push(`acc ${sparkline(s.accSeries)}`);
+    if (parts.length) meta[s.id] = parts.join(" ");
+  }
+
   const lines = [header(fleet), ""];
   lines.push("  ↑↓ select · → open · enter actions · /monitor off to chat");
   lines.push("");
-  for (const l of renderResearchTree(fleet.entries, fleet.hypothesesContent, {}, selectedId)) lines.push(l);
-  lines.push("");
-  lines.push("experiments");
-  if (fleet.stats.length === 0) lines.push("  (none yet)");
-  else for (const s of fleet.stats) {
-    const sel = s.id === selectedId ? "▸" : " ";
-    const icon = STATUS_ICON[s.status] ?? "?";
-    lines.push(`  ${sel}${icon} ${s.id.padEnd(8)} ${`${s.trialsDone}/${s.trialsTotal}`.padEnd(7)} $${s.spent.toFixed(0).padEnd(5)} ${s.accSeries.length ? "acc " + sparkline(s.accSeries) : ""}`);
-  }
+  for (const l of renderResearchTree(fleet.entries, fleet.hypothesesContent, {}, selectedId, meta)) lines.push(l);
   return lines;
 }
 

@@ -77,7 +77,14 @@ test("tree interface shows the selected experiment and the tree", () => {
   assert.match(lines, /H-001/);
   assert.match(lines, /H-004/);
   assert.match(lines, /▸/); // selection marker
-  assert.match(lines, /experiments/);
+});
+
+test("tree interface renders the decision fork inline (to the right) and progress", () => {
+  const lines = renderMonitor(fleet(), "tree", 1).join("\n");
+  // Decision shown inline as "◇ <cond> ? <yes> : <no>", not a multi-line block.
+  assert.match(lines, /◇ acc ≥ 0\.80 \? ship : H-006/);
+  assert.doesNotMatch(lines, /yes → ship/); // no vertical yes/no block in the tree
+  assert.match(lines, /5\/30/); // inline progress (trials) rides on the node
 });
 
 test("detail interface shows the selected hypothesis detail + decision fork", () => {

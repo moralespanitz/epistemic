@@ -46,15 +46,19 @@ export function parseConditionalPlans(content: string): Map<string, ConditionalP
 }
 
 /**
- * Render the research program as a top-down decision tree: nodes flow downward,
- * children hang off a vertical spine, conditional plans branch into a decision
- * fork (◇ if … → yes / no), and archived alternatives hang as side threads.
+ * Render the research program as a vertical decision tree: nodes flow downward,
+ * children hang off a vertical spine, and each node carries its decision fork
+ * INLINE to the right (◇ <cond> ? <yes> : <no>) so the tree reads as a
+ * results-driven branch — "if this holds, go there; else, pivot here". Optional
+ * `meta` appends live progress (trials/cost/acc) to the right of a node, so the
+ * tree doubles as the todo/experiment list. Alternatives hang as side threads.
  */
 export function renderResearchTree(
   entries: HypothesisEntry[],
   content: string,
   alternatives: Record<string, string[]> = {},
   selectedId?: string,
+  meta: Record<string, string> = {},
 ): string[] {
   const byId = new Map(entries.map((e) => [e.id, e]));
   const parent = parseParentEdges(content);
@@ -77,17 +81,14 @@ export function renderResearchTree(
     const branch = isRoot ? "" : isLast ? "└─▶ " : "├─▶ ";
     const bullet = id === selectedId ? "▸" : "●";
     const icon = STATUS_ICON[e.status] ?? "?";
-    lines.push(`${prefix}${branch}${bullet} ${icon} ${e.id}  ${e.claim.slice(0, 40)}`);
+    const progress = meta[id] ? `  ·  ${meta[id]}` : "";
+    const plan = plans.get(id);
+    // Decision fork rendered inline, to the right of the node.
+    const fork = plan ? `   ◇ ${plan.condition} ? ${plan.ifTrue} : ${plan.ifFalse}` : "";
+    lines.push(`${prefix}${branch}${bullet} ${icon} ${e.id}  ${e.claim.slice(0, 32)}${progress}${fork}`);
 
     const below = isRoot ? "" : prefix + (isLast ? "    " : "│   ");
 
-    const plan = plans.get(id);
-    if (plan) {
-      lines.push(`${below}│`);
-      lines.push(`${below}◇ if ${plan.condition}`);
-      lines.push(`${below}├─ yes → ${plan.ifTrue}`);
-      lines.push(`${below}└─ no  → ${plan.ifFalse}`);
-    }
     for (const alt of alternatives[id] ?? []) lines.push(`${below}↳ alt: ${alt}`);
 
     const kids = childrenOf.get(id) ?? [];

@@ -19,7 +19,8 @@ after(() => app?.kill());
 test("monitor renders mission control + the experiment tree", async () => {
   await app.waitFor("mission control");
   await app.waitFor("H-001");
-  assert.match(app.screen(), /experiments/);
+  // The monitor is a vertical decision tree: decision forks render inline (◇).
+  assert.match(app.screen(), /◇/);
 });
 
 test("↓ then → opens the detail interface", async () => {
