@@ -41,7 +41,7 @@ export async function renderResearchSidebar(cwd: string): Promise<string[]> {
       hasJudgeLock:         stat?.hasJudgeLock ?? false,
       hasBaseline:          stat?.hasBaseline ?? false,
       hasSmokes:            stat?.hasSmokes ?? false,
-      smokesSimulated:      false,
+      smokesSimulated:      false, // TODO: ExperimentStat doesn't expose this yet — suppresses smokes-simulated anomaly
       hasConfirmedResults:  stat?.inResults ?? false,
     };
     const report = deriveStage(facts);
@@ -67,7 +67,8 @@ export async function renderResearchSidebar(cwd: string): Promise<string[]> {
       SEP,
       `→ ${report.nextAction.slice(0, 20)}`,
     ];
-  } catch {
+  } catch (e) {
+    process.stderr.write(`[epistemic sidebar] ${String(e)}\n`);
     return ["Ξ epistemic", "─ sidebar error"];
   }
 }
