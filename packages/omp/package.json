@@ -1,0 +1,12 @@
+{
+  "name": "@epistemic/omp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Epistemic TUI shell — forked from oh-my-pi, rethemed for research discipline.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-tui": "*"
+  }
+}

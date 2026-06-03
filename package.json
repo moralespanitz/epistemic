@@ -2,6 +2,7 @@
   "name": "epistemic",
   "version": "1.0.0",
   "type": "module",
+  "workspaces": ["packages/*"],
   "description": "A research-discipline coding agent: pre-register hypotheses, reproduce baselines, run experiments, falsify claims, and ship or kill — with an interactive experiment monitor and methodology gates.",
   "keywords": [
     "epistemic",
