@@ -18,6 +18,8 @@ import { renderMonitor, type MonitorMode } from "../../../../src/research/monito
 import { parseKey, reduceNav, actionPrompt, type ActionLabel } from "../../../../src/research/monitor-nav.js";
 import { loadFleet, type Fleet } from "../../../../src/monitor/fleet.js";
 import { renderBoard, parallelLanesText } from "../../../../src/research/board.js";
+import { createEpistemicAPI } from "../plugin/runtime.js";
+import type { EpistemicAPI } from "../plugin/api.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
@@ -131,9 +133,10 @@ const navRegisteredCtxs = new WeakSet<object>();
 export default async function (pi: ExtensionAPI) {
   if (registeredInstances.has(pi as object)) return;
   registeredInstances.add(pi as object);
+  const api = createEpistemicAPI(pi);
 
   // ─── Session start ───────────────────────────────────────────
-  pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
+  api.on("session_start", async (_event: any, ctx: ExtensionContext) => {
     sessionCtx = ctx;
     try {
       const state = await loadRepoState(ctx.cwd);
@@ -181,27 +184,27 @@ export default async function (pi: ExtensionAPI) {
     } catch {}
   });
 
-  pi.on("session_shutdown", async () => {
+  api.on("session_shutdown", async () => {
     if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   });
 
   // ─── State injection into system prompt ─────────────────────
-  setupBeforeAgentStart(pi);
+  setupBeforeAgentStart(api);
 
   // ─── Gates ────────────────────────────────────────────────────
-  registerPreregGate(pi as any);
-  registerJudgeLockGate(pi as any);
-  registerSmokeGate(pi as any);
-  registerCostLedger(pi as any);
-  registerClaimInterceptor(pi as any);
-  registerKillCriteriaGate(pi as any);
-  registerBaselineStalenessGate(pi as any);
+  registerPreregGate(api);
+  registerJudgeLockGate(api);
+  registerSmokeGate(api);
+  registerCostLedger(api);
+  registerClaimInterceptor(api);
+  registerKillCriteriaGate(api);
+  registerBaselineStalenessGate(api);
 
   // ─── Tools ────────────────────────────────────────────────────
   // registerHuggingFaceTools(pi);
 
   // ─── Spatial research views (inside real omp) ─────────────────
-  registerResearchCommands(pi);
+  registerResearchCommands(api);
 }
 
 /**
@@ -209,12 +212,12 @@ export default async function (pi: ExtensionAPI) {
  * This keeps epistemic as "pi.dev + extensions" — the real omp chat, plus a
  * live decision-tree widget and a hypothesis action menu.
  */
-function registerResearchCommands(pi: any) {
+function registerResearchCommands(api: EpistemicAPI) {
   // View-switching is via the /view command. We intentionally register NO
   // keyboard shortcut: pi reserves nearly every modifier+key for its editor
   // (emacs bindings) and tree navigation, so any global shortcut either
   // conflicts or silently breaks an expected key.
-  pi.registerCommand?.("view", {
+  api.registerCommand("view", {
     description: "Cycle epistemic research views (off → monitor → tree → cost)",
     handler: async (args: string, ctx: any) => {
       const want = args.trim() as ResearchView;
@@ -226,7 +229,7 @@ function registerResearchCommands(pi: any) {
 
   // /monitor — full interactive monitor that TAKES OVER the view (ctx.ui.custom),
   // then returns to pi's real chat. Full height, native arrow nav, no truncation.
-  pi.registerCommand?.("monitor", {
+  api.registerCommand("monitor", {
     description: "Open the interactive monitor (↑↓ select · → detail · enter actions · q back to chat)",
     handler: async (_args: string, ctx: any) => {
       if (!ctx.ui.custom) {
@@ -251,7 +254,7 @@ function registerResearchCommands(pi: any) {
 
   // /credentials — view and set provider/experiment keys from inside epistemic
   // (saved to a gitignored .env, applied live). For the agent model, /login is best.
-  pi.registerCommand?.("credentials", {
+  api.registerCommand("credentials", {
     description: "View or set API keys (OpenRouter, Anthropic, OpenAI, Google, HuggingFace, Modal)",
     handler: async (args: string, ctx: any) => {
       // `/credentials KEY value` sets directly; bare `/credentials` is interactive.
@@ -277,7 +280,7 @@ function registerResearchCommands(pi: any) {
 
   // /sweep — fan out experiment variants in parallel (omp's parallel-subagents
   // signature, applied to research). Prefills a structured instruction for review.
-  pi.registerCommand?.("sweep", {
+  api.registerCommand("sweep", {
     description: "Fan out parallel experiment variants for the active hypothesis",
     handler: async (args: string, ctx: any) => {
       const active = getActiveHypothesis(await loadHypotheses(ctx.cwd));
@@ -295,7 +298,7 @@ function registerResearchCommands(pi: any) {
   // /idea — the interactive funnel: a raw prompt → a research plan you can
   // brainstorm/refine → on APPROVE, the epistemic pipeline takes over. The agent
   // does the reasoning; the gates enforce that nothing runs before prereg.
-  pi.registerCommand?.("idea", {
+  api.registerCommand("idea", {
     description: "Start a new idea → plan → approve → run the epistemic pipeline",
     handler: async (args: string, ctx: any) => {
       const idea = args.trim() || (await ctx.ui.input?.("Your research idea (one line)", "e.g. observation-time scoring beats retrieve-then-rank"))?.trim();
@@ -317,7 +320,7 @@ function registerResearchCommands(pi: any) {
 
   // /lessons — cross-run memory (every kill/pivot/overrun, surfaced for reuse).
   // Inspired by omp's persistent memory; epistemic-native via .epistemic/lessons.jsonl.
-  pi.registerCommand?.("lessons", {
+  api.registerCommand("lessons", {
     description: "Show cross-run research lessons (past kills, pivots, overruns)",
     handler: async (_args: string, ctx: any) => {
       const lessons = await loadLessons(ctx.cwd);
@@ -328,7 +331,7 @@ function registerResearchCommands(pi: any) {
   });
 
   // /map (not /tree — that's a built-in pi command).
-  pi.registerCommand?.("map", {
+  api.registerCommand("map", {
     description: "Toggle the epistemic decision tree (research program as a map)",
     handler: async (args: string, ctx: any) => {
       if (args.trim() === "off") {
@@ -347,7 +350,7 @@ function registerResearchCommands(pi: any) {
   // /board — the parallel mission-control board: every hypothesis as a card in
   // its current pipeline lane (Prereg · Baseline · Running · Review · Decided),
   // so many advance concurrently instead of one linear funnel.
-  pi.registerCommand?.("board", {
+  api.registerCommand("board", {
     description: "Parallel board — every hypothesis in its current pipeline lane",
     handler: async (args: string, ctx: any) => {
       if (args.trim() === "off") {
@@ -363,7 +366,7 @@ function registerResearchCommands(pi: any) {
     },
   });
 
-  pi.registerCommand?.("hypothesis", {
+  api.registerCommand("hypothesis", {
     description: "Pick a hypothesis and act on it (approve / reject / modify / chat)",
     handler: async (_args: string, ctx: any) => {
       const entries = await loadHypotheses(ctx.cwd);
@@ -433,8 +436,8 @@ async function gatherStageFacts(cwd: string, active: HypothesisEntry, spent: num
   return { active, spent, hasPrereg, hasJudgeLock, hasBaseline, hasSmokes, smokesSimulated, hasConfirmedResults };
 }
 
-function setupBeforeAgentStart(pi: any) {
-  pi.on("before_agent_start", async (event: any, _ctx: any) => {
+function setupBeforeAgentStart(api: EpistemicAPI) {
+  api.on("before_agent_start", async (event: any, _ctx: any) => {
     try {
       const entries = await loadHypotheses(event.cwd);
       const active = getActiveHypothesis(entries);
