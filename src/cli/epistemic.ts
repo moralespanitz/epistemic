@@ -19,7 +19,7 @@ for (const f of [".env", ".env.local"]) {
 }
 
 import { main } from "@earendil-works/pi-coding-agent";
-import epistemicExtension from "../index.js";
+import { epistemicExtension } from "@epistemic/omp";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
 

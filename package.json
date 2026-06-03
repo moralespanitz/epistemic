@@ -45,7 +45,7 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./packages/omp/src/commands/epistemic.ts"
     ],
     "skills": [
       "./skills"
