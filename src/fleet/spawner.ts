@@ -11,10 +11,10 @@ export function isAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-export function spawnAgent(worktreePath: string, prompt: string, logPath: string): number {
+export function spawnAgent(agentCwd: string, prompt: string, logPath: string): number {
   const fd = openSync(logPath, "a");
   const child = spawn("claude", ["-p", prompt, "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep"], {
-    cwd: worktreePath,
+    cwd: agentCwd,
     detached: true,
     stdio: ["ignore", fd, fd],
   });
