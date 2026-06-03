@@ -101,6 +101,17 @@ agent above — in Claude Code the skills are methodology guidance.
 
 ---
 
+### Repo layout
+
+| Path | What it is |
+|------|-----------|
+| `packages/omp/` | `@epistemic/omp` — forked oh-my-pi TUI shell (Amber Lab theme, ResearchSidebar) |
+| `src/` | Extension wired into omp: gates, commands, monitor, board |
+| `skills/` | Claude Code skills (methodology manuals) |
+| `hooks/` | Claude Code hooks (SessionStart, prereg gate) |
+
+---
+
 ## How it works
 
 | Layer | What it does |
