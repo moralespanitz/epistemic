@@ -7,6 +7,7 @@ import { registerCostLedger } from "../gates/cost-ledger.js";
 import { registerClaimInterceptor } from "../gates/claim-interceptor.js";
 import { registerKillCriteriaGate } from "../gates/kill-criteria.js";
 import { registerBaselineStalenessGate } from "../gates/baseline-staleness.js";
+import { registerHuggingFaceTools } from "../../../../src/extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons, loadBaselines, fileExists, type HypothesisEntry } from "../../../../src/state/repo.js";
 import { deriveStage, renderStageBlock, type StageFacts } from "../../../../src/state/stage.js";
 import { refreshEpistemicWidget, linesWidget } from "../../../../src/tui/widget.js";
