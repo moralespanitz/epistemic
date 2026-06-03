@@ -127,6 +127,54 @@ manual. The gates are the safety net.
 
 ---
 
+## Plugin API
+
+`@epistemic/omp` exposes a typed plugin API so you can extend epistemic with your own commands, event handlers, and gates — without touching pi's raw `any`-typed interface.
+
+```typescript
+import type { EpistemicPlugin } from "@epistemic/omp";
+
+export const myPlugin: EpistemicPlugin = (api) => {
+  // Register a /slash command
+  api.registerCommand("my-cmd", {
+    description: "My custom command",
+    handler: async (args, ctx) => {
+      ctx.ui.notify(`Running my-cmd with: ${args}`, "info");
+    },
+  });
+
+  // Subscribe to an event
+  api.on("session_start", async (_event, ctx) => {
+    ctx.ui.setStatus?.("my-plugin", "● active");
+  });
+
+  // Register a gate that blocks tool calls matching a condition
+  api.gate(async (event, ctx) => {
+    // Return { block: true, reason: "..." } to interrupt
+  });
+};
+```
+
+Load your plugin by passing it an `EpistemicAPI` instance:
+
+```typescript
+import { createEpistemicAPI } from "@epistemic/omp";
+
+// Inside your pi extension factory:
+export default async function(pi: any) {
+  const api = createEpistemicAPI(pi);
+  await myPlugin(api);
+}
+```
+
+| Method | What it does |
+|--------|-------------|
+| `registerCommand(name, opts)` | Registers a `/name` slash command in the agent chat |
+| `on(event, handler)` | Subscribes to `session_start`, `session_shutdown`, `before_agent_start`, or `tool_call` |
+| `gate(handler)` | Registers a `tool_call` gate — return `{ block, reason }` to interrupt |
+
+---
+
 ## The pipeline
 
 ```
