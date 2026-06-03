@@ -7,7 +7,7 @@ describe("AMBER_LAB", () => {
     const required = ["bg", "bgPanel", "border", "primary", "text", "dim", "green", "red", "yellow", "cyan"];
     for (const key of required) {
       assert.ok(key in AMBER_LAB, `missing token: ${key}`);
-      assert.match((AMBER_LAB as any)[key], /^#[0-9a-fA-F]{6}$/, `${key} must be a 6-digit hex color`);
+      assert.match(AMBER_LAB[key as keyof typeof AMBER_LAB], /^#[0-9a-fA-F]{6}$/, `${key} must be a 6-digit hex color`);
     }
   });
 

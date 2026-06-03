@@ -83,8 +83,8 @@
 		"bashMode": "green"
 	},
 	"export": {
-		"pageBg": "#18181e",
-		"cardBg": "#1e1e24",
-		"infoBg": "#3c3728"
+		"pageBg": "#0f0a00",
+		"cardBg": "#1a0f00",
+		"infoBg": "#2a1a00"
 	}
 }

@@ -8,7 +8,7 @@ export const AMBER_LAB = {
   green:   "#34d399",
   red:     "#ef4444",
   yellow:  "#fcd34d",
-  cyan:    "#fde68a",
+  cyan:    "#fde68a", // warm highlight (pale amber) — maps to the theme engine's "cyan" slot
 } as const;
 
 export type AmberLabToken = keyof typeof AMBER_LAB;
