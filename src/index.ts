@@ -11,6 +11,7 @@ import { registerHuggingFaceTools } from "./extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons, loadBaselines, fileExists, type HypothesisEntry } from "./state/repo.js";
 import { deriveStage, renderStageBlock, type StageFacts } from "./state/stage.js";
 import { refreshEpistemicWidget, linesWidget } from "./tui/widget.js";
+import { renderResearchSidebar } from "../packages/omp/src/layout/ResearchSidebar.js";
 import { credentialStatus, credentialOptions, saveKey, KNOWN_KEYS } from "./credentials.js";
 import { renderResearchTree } from "./research/tree.js";
 import { renderMonitor, type MonitorMode } from "./research/monitor.js";
@@ -162,6 +163,11 @@ export default async function (pi: ExtensionAPI) {
       }
 
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
+      // Research sidebar — Amber Lab right panel
+      try {
+        const sidebarLines = await renderResearchSidebar(ctx.cwd);
+        ctx.ui.setWidget?.("epistemic-sidebar", linesWidget(sidebarLines), { placement: "belowEditor" });
+      } catch { /* never block the agent on sidebar errors */ }
 
       // Live refresh: while a research view is open, keep it current even when
       // idle — like a real dashboard.
@@ -435,6 +441,10 @@ function setupBeforeAgentStart(pi: any) {
 
       if (sessionCtx) {
         await refreshEpistemicWidget(sessionCtx, event.cwd, ACTIVE_GATES);
+        try {
+          const sidebarLines = await renderResearchSidebar(event.cwd);
+          sessionCtx.ui.setWidget?.("epistemic-sidebar", linesWidget(sidebarLines), { placement: "belowEditor" });
+        } catch {}
         if (treeVisible) { try { await showTree(sessionCtx); } catch {} }
       }
       if (!active) return;
