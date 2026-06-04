@@ -1,6 +1,6 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile, appendFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { parseHypotheses, getHypothesisSpend, fileExists } from "../state/repo.js";
 import { buildGraphData } from "./state.js";
@@ -16,10 +16,10 @@ export interface GraphServer {
 const ALLOWED_EVENT_TYPES = new Set(["open-hypothesis", "new-research", "dismiss-proposal"]);
 const MAX_BODY_BYTES = 64 * 1024;
 
-// Resolve d3 from node_modules — use the main entry then navigate to dist/
-// (the d3 package exports map blocks direct subpath resolution via createRequire)
+// Resolve d3 from node_modules — navigate from package root to dist/
+// (d3's exports map blocks ./package.json, so we resolve the main entry and go up)
 const req = createRequire(import.meta.url);
-const D3_PATH = req.resolve("d3").replace(/\/src\/index\.js$/, "/dist/d3.min.js");
+const D3_PATH = join(dirname(dirname(req.resolve("d3"))), "dist", "d3.min.js");
 
 // Embedded client HTML — no file path fragility
 const CLIENT_HTML = `<!DOCTYPE html>
@@ -151,9 +151,11 @@ async function handleState(cwd: string, res: ServerResponse): Promise<void> {
 
   const hypotheses = hypothesesMd ? parseHypotheses(hypothesesMd) : [];
   const spendMap: Record<string, number> = {};
-  for (const h of hypotheses) {
-    spendMap[h.id] = await getHypothesisSpend(cwd, h.id);
-  }
+  await Promise.all(
+    hypotheses.map(async h => {
+      spendMap[h.id] = await getHypothesisSpend(cwd, h.id);
+    })
+  );
 
   const data = buildGraphData(researchMd, hypothesesMd, spendMap, resultsMd);
 

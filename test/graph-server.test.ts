@@ -53,4 +53,29 @@ describe("graph server", () => {
     const res = await fetch(server.url + "/unknown");
     assert.equal(res.status, 404);
   });
+
+  it("rejects non-localhost origin with 403", async () => {
+    const res = await fetch(server.url + "/api/state", {
+      headers: { "Origin": "http://evil.com" },
+    });
+    assert.equal(res.status, 403);
+  });
+
+  it("returns 204 for OPTIONS preflight", async () => {
+    const res = await fetch(server.url + "/api/state", { method: "OPTIONS" });
+    assert.equal(res.status, 204);
+  });
+
+  it("rejects invalid JSON body with 400", async () => {
+    const res = await fetch(server.url + "/api/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not valid json",
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("eventReader is returned and has a read() method", () => {
+    assert.equal(typeof server.eventReader.read, "function");
+  });
 });
