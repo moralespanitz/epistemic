@@ -37,6 +37,13 @@ const STATUS_ICON: Record<string, string> = {
   KILLED:    "☓",
 };
 
+export interface HypothesisGates {
+  prereg: boolean;
+  judgeLock: boolean;
+  stats: boolean;
+  falsif: boolean;
+}
+
 export function buildEpistemicWidget(
   active: HypothesisEntry | undefined,
   spent: number,
@@ -78,4 +85,37 @@ export async function refreshEpistemicWidget(ctx: any, cwd: string, gates: strin
 function costBar(pct: number, width: number): string {
   const filled = Math.round((pct / 100) * width);
   return `[${"█".repeat(filled)}${"░".repeat(width - filled)} ${pct}%]`;
+}
+
+export function buildHypothesisHeader(
+  active: HypothesisEntry | undefined,
+  spent: number,
+  gates: HypothesisGates,
+  trialsDone: number,
+  trialsTotal: number,
+): string[] {
+  if (!active) return [];
+
+  const icon = STATUS_ICON[active.status] ?? "○";
+  const claim = active.claim.length > 40 ? active.claim.slice(0, 40) + "…" : active.claim;
+  const stage = deriveStageFromStatus(active.status);
+  const cost = `$${spent.toFixed(2)}/$${active.costCap}`;
+  const trials = trialsTotal > 0 ? ` · ${trialsDone}/${trialsTotal} runs` : "";
+
+  const line1 = `${icon} ${active.id} · ${claim}   stage ${stage}/9 · ${cost}${trials}`;
+  const g = (ok: boolean, label: string) => `${ok ? "✓" : "✗"} ${label}`;
+  const line2 = `${g(gates.prereg, "prereg")}   ${g(gates.judgeLock, "judge")}   ${g(gates.stats, "stats")}   ${g(gates.falsif, "falsif")}`;
+
+  return [line1, line2];
+}
+
+function deriveStageFromStatus(status: HypothesisEntry["status"]): number {
+  switch (status) {
+    case "OPEN":      return 2;
+    case "RUNNING":   return 4;
+    case "CONFIRMED": return 7;
+    case "FALSIFIED": return 6;
+    case "KILLED":    return 8;
+    default:          return 1;
+  }
 }
