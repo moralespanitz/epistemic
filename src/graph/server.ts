@@ -203,7 +203,10 @@ async function handleEvent(cwd: string, request: IncomingMessage, res: ServerRes
 
 export async function startGraphServer(cwd: string, serverStartTime: number): Promise<GraphServer> {
   const d3Source = await readFile(D3_PATH, "utf8");
-  const html = CLIENT_HTML.replace("/* D3_PLACEHOLDER */", d3Source);
+  // Use a replacement FUNCTION, not a string: d3's minified source contains
+  // "$&" (and other $-patterns) which String.replace would interpret as
+  // match-insertion specials, corrupting the d3 bundle and breaking the graph.
+  const html = CLIENT_HTML.replace("/* D3_PLACEHOLDER */", () => d3Source);
 
   const server: Server = createServer(async (request, res) => {
     const url = new URL(request.url ?? "/", "http://localhost");
