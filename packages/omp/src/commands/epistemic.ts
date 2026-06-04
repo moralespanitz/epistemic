@@ -405,6 +405,39 @@ function registerResearchCommands(api: EpistemicAPI) {
       else ctx.ui.notify?.(prompt, "info");
     },
   });
+
+  // /new — start a new research document with Socratic brainstorming
+  api.registerCommand("new", {
+    description: "Start a new research document (Socratic brainstorm)",
+    handler: async (_args, ctx) => {
+      const existing = await loadHypotheses(ctx.cwd);
+      if (existing.some(e => ["OPEN", "RUNNING"].includes(e.status))) {
+        ctx.ui.notify("Active hypotheses exist. Finish or kill them before starting new research.", "warn");
+        return;
+      }
+      ctx.ui.notify("Starting research brainstorm...", "info");
+      await (ctx as any).sendUserMessage?.(
+        "Begin a new research document. Follow the research-question skill: ask one Socratic question at a time to fill the Research Document template from docs/research-document.md. When all slots are filled, write RESEARCH.md to the repo root."
+      );
+    },
+  });
+
+  // /graph — open the hypothesis graph in the browser
+  api.registerCommand("graph", {
+    description: "Open the hypothesis graph in the browser",
+    handler: async (_args, ctx) => {
+      const url = process.env.EPISTEMIC_GRAPH_URL;
+      if (!url) {
+        ctx.ui.notify("Graph server not running. Start epistemic normally to auto-launch it.", "warn");
+        return;
+      }
+      const { exec } = await import("node:child_process");
+      const cmd = process.platform === "darwin" ? `open "${url}"` :
+                  process.platform === "win32"  ? `start "${url}"` : `xdg-open "${url}"`;
+      exec(cmd, () => {});
+      ctx.ui.notify(`Graph open at ${url}`, "info");
+    },
+  });
 }
 
 async function handleGraphEvents(ctx: ExtensionContext): Promise<void> {
