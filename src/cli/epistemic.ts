@@ -22,11 +22,24 @@ import { main } from "@earendil-works/pi-coding-agent";
 import { epistemicExtension } from "@epistemic/omp";
 import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
+import { startGraphServer } from "../graph/server.js";
+import { exec } from "node:child_process";
 
 // Default to OpenAI Codex (ChatGPT Plus/Pro subscription auth). The codex
 // provider is OAuth-only — no env var — so it's matched purely by an
 // "openai-codex" entry in ~/.pi/agent/auth.json.
 const DEFAULT_MODEL = "openai-codex/gpt-5.5";
+
+/**
+ * Open a URL in the default browser (macOS, Windows, Linux).
+ */
+function openBrowser(url: string): void {
+  if (!process.stdout.isTTY) return;
+  const cmd = process.platform === "darwin" ? `open "${url}"` :
+               process.platform === "win32"  ? `start "${url}"` :
+                                               `xdg-open "${url}"`;
+  exec(cmd, () => {});
+}
 
 /**
  * Pick a default model whose provider the user can actually authenticate.
@@ -76,6 +89,15 @@ async function run() {
     return;
   }
 
+  if (args[0] === "graph") {
+    const serverStartTime = Date.now();
+    const server = await startGraphServer(process.cwd(), serverStartTime);
+    console.log(`Ξ epistemic graph  ${server.url}`);
+    openBrowser(server.url);
+    await new Promise(() => {}); // keep alive until Ctrl+C
+    return;
+  }
+
   // Default to openrouter deepseek-v4-pro unless the user picks a model.
   // But only if its provider key is actually present — otherwise the agent
   // boots straight into "No API key found" and churns through fallbacks
@@ -87,6 +109,21 @@ async function run() {
   }
 
   const interactive = !args.includes("-p") && !args.includes("--print");
+
+  // Auto-start graph server and expose its URL/port to the extension
+  const serverStartTime = Date.now();
+  try {
+    const graphServer = await startGraphServer(process.cwd(), serverStartTime);
+    process.env.EPISTEMIC_GRAPH_URL = graphServer.url;
+    process.env.EPISTEMIC_GRAPH_PORT = String(graphServer.port);
+    process.env.EPISTEMIC_GRAPH_START_TIME = String(serverStartTime);
+    if (interactive) openBrowser(graphServer.url);
+    process.on("exit", () => graphServer.close());
+    process.on("SIGINT", () => { graphServer.close(); process.exit(0); });
+  } catch {
+    // Graph server is optional — proceed without it
+  }
+
   if (interactive) {
     try { await playIntro(); } catch { /* never block the agent on the intro */ }
   }
