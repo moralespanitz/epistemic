@@ -484,3 +484,25 @@ This stage is cheap.
 That is why people try to skip it.
 
 After the draft exists in `HYPOTHESES.md`, the non-chosen explanations are written to `experiments/{id}/alternatives/`, and the prereg-ready fields are explicit, use `/skill:preregistration`.
+
+## Output: Writing RESEARCH.md
+
+When all slots are filled and confirmed by the user:
+
+1. Generate the complete Research Document using the template from `docs/research-document.md`
+2. Write it to `RESEARCH.md` in the repo root (overwrite if it already exists)
+3. For each Research Story in section 10 (RS-001, RS-002, …), append an entry to `HYPOTHESES.md`:
+
+```
+## Hypothesis: RS-NNN
+- **Claim**: <story title as a testable claim>
+- **Status**: OPEN
+- **Cost Cap**: 50
+- **N**: 30
+- **Compute Target**: local
+- **Timestamp**: <current unix milliseconds>
+```
+
+4. Notify the user: "Research Document written to RESEARCH.md. Open the graph to see your hypotheses — the graph auto-refreshes within 2 seconds."
+
+The graph panel reads RESEARCH.md and HYPOTHESES.md and will display the Research Document as the root node with Research Stories as circles.
