@@ -12,17 +12,17 @@ describe("graph server", () => {
     assert.equal(res.status, 200);
     const text = await res.text();
     assert.ok(text.includes("epistemic"));
-    assert.ok(text.includes("svg"));
+    assert.ok(text.includes("id=\"cy\""));
   });
 
-  it("injects D3 without corrupting it (regression: $& replacement bug)", async () => {
+  it("injects the graph library without corrupting it (regression: $& replacement bug)", async () => {
     const text = await (await fetch(server.url + "/")).text();
     // The placeholder must be fully replaced — none may survive.
-    assert.ok(!text.includes("D3_PLACEHOLDER"), "D3_PLACEHOLDER leaked into served HTML");
-    // D3 source must be present and intact (its copyright banner is a stable marker).
-    assert.ok(text.includes("d3js.org"), "D3 source missing from served HTML");
-    // The $& footgun reinjects the placeholder text inside d3's source; assert it didn't.
-    assert.ok(!text.includes('"\\\\/* D3'), "d3 source corrupted by $& match-insertion");
+    assert.ok(!text.includes("CYTOSCAPE_PLACEHOLDER"), "placeholder leaked into served HTML");
+    // The library source must be present (cytoscape exposes a global factory).
+    assert.ok(text.includes("cytoscape"), "graph library source missing from served HTML");
+    // The $& footgun reinjects the placeholder text inside the bundle; assert it didn't.
+    assert.ok(!text.includes("/* CYTOSCAPE"), "bundle corrupted by $& match-insertion");
   });
 
   it("returns JSON on GET /api/state", async () => {

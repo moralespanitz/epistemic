@@ -52,6 +52,7 @@
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
+    "cytoscape": "^3.34.0",
     "d3": "^7.9.0",
     "tsx": "^4.22.4"
   },
