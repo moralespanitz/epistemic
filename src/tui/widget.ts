@@ -117,6 +117,6 @@ function deriveStageFromStatus(status: HypothesisEntry["status"]): number {
     case "CONFIRMED": return 7;
     case "FALSIFIED": return 6;
     case "KILLED":    return 8;
-    default:          return 1;
+    default:          return 0;
   }
 }

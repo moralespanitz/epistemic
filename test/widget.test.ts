@@ -61,4 +61,38 @@ describe("buildHypothesisHeader", () => {
     assert.ok(lines[0].includes("…"));
     assert.ok(!lines[0].includes("A".repeat(41)));
   });
+
+  it("shows correct stage number in line 1 for RUNNING hypothesis", () => {
+    const lines = buildHypothesisHeader(
+      baseEntry, 4.2,
+      { prereg: true, judgeLock: true, stats: false, falsif: false },
+      14, 30
+    );
+    assert.ok(lines[0].includes("stage 4/9"), `expected 'stage 4/9' in: ${lines[0]}`);
+  });
+
+  it("line 2 contains all four gate labels", () => {
+    const lines = buildHypothesisHeader(
+      baseEntry, 0,
+      { prereg: true, judgeLock: false, stats: false, falsif: false },
+      0, 0
+    );
+    assert.ok(lines[1].includes("prereg"));
+    assert.ok(lines[1].includes("judge"));
+    assert.ok(lines[1].includes("stats"));
+    assert.ok(lines[1].includes("falsif"));
+  });
+
+  it("handles emoji in claim without crashing", () => {
+    const emojiEntry = { ...baseEntry, claim: "🧪".repeat(45) };
+    const lines = buildHypothesisHeader(
+      emojiEntry, 0,
+      { prereg: false, judgeLock: false, stats: false, falsif: false },
+      0, 0
+    );
+    assert.equal(lines.length, 2);
+    assert.ok(lines[0].includes("…"));
+    // Must not contain orphaned surrogates
+    assert.ok(!lines[0].includes("\uD83E") || lines[0].includes("🧪"));
+  });
 });
