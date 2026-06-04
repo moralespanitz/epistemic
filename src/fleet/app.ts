@@ -29,18 +29,23 @@ function costBar(spent: number, cap: number, width = 8): string {
 
 function laneToPane(lane: LaneState, selected: boolean): PaneTree {
   const statusIcon = lane.agentAlive ? GREEN("↻") : lane.status === "KILLED" ? RED("✗") : DIM("·");
-  const title = `${selected ? BOLD("▶") : " "} ${lane.id}  ${statusIcon}  ${lane.stage.slice(0, 20)}`;
-  const lines = [
-    lane.claim.slice(0, 35) + (lane.claim.length > 35 ? "…" : ""),
+  const title = `${selected ? BOLD("▶") : " "} ${lane.id}  ${statusIcon}  ${lane.stage.slice(0, 22)}`;
+  const header = [
+    lane.claim.slice(0, 38) + (lane.claim.length > 38 ? "…" : ""),
     `${costBar(lane.spent, lane.costCap)}  $${lane.spent.toFixed(0)}/$${lane.costCap}`,
     [
-      lane.hasPrereg  ? GREEN("prereg✓") : RED("prereg✗"),
-      lane.hasBaseline ? GREEN("base✓")  : DIM("base·"),
-      lane.hasSmokes   ? GREEN("smokes✓"): DIM("smokes·"),
+      lane.hasPrereg   ? GREEN("prereg✓") : RED("prereg✗"),
+      lane.hasBaseline ? GREEN("base✓")   : DIM("base·"),
+      lane.hasSmokes   ? GREEN("smokes✓") : DIM("smokes·"),
     ].join("  "),
     lane.pid ? DIM(`pid ${lane.pid}`) : DIM("not started"),
+    "", // separator
   ];
-  return { title, lines };
+  // Fill remaining space with live log output (stripped of ANSI for readability)
+  const logDisplay = lane.logLines.length
+    ? lane.logLines.map(l => DIM(l.replace(/\x1b\[[0-9;]*m/g, "").slice(0, 60)))
+    : [DIM("waiting for agent output…")];
+  return { title, lines: [...header, ...logDisplay] };
 }
 
 export async function runFleetApp(cwd: string): Promise<void> {

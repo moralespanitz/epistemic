@@ -55,9 +55,20 @@ export function composeBlocks(blocks: string[][], rects: Rect[], w: number, h: n
     const segs = rects
       .map((r, i) => (y >= r.y && y < r.y + r.h ? { x: r.x, line: blocks[i][y - r.y] } : null))
       .filter((s): s is { x: number; line: string } => s !== null)
-      .sort((p, q) => p.x - q.x)
-      .map((s) => s.line);
-    out.push(segs.join("").slice(0, w).padEnd(w, " "));
+      .sort((p, q) => p.x - q.x);
+    // Shared borders: when one pane's right edge (│/┐/┘) meets the next pane's
+    // left edge (│/┌/└), drop the duplicate so borders don't render as ││.
+    const lines: string[] = [];
+    for (let i = 0; i < segs.length; i++) {
+      let line = segs[i].line;
+      if (i > 0) {
+        // Strip the leading border char of non-first segments to avoid ││
+        const first = line[0];
+        if (first === "│" || first === "┌" || first === "└") line = line.slice(1);
+      }
+      lines.push(line);
+    }
+    out.push(lines.join("").slice(0, w).padEnd(w, " "));
   }
   return out;
 }

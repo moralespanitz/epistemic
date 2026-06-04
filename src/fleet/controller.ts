@@ -1,9 +1,18 @@
+import { readFile } from "node:fs/promises";
 import { loadHypotheses, updateHypothesisStatus } from "../state/repo.js";
 import { loadFleet } from "../monitor/fleet.js";
 import { createWorktree, removeWorktree, worktreePath, writePid, readPid } from "./worktree.js";
 import { spawnAgent, killAgent, isAlive, buildLogPath } from "./spawner.js";
 import { buildStagePrompt } from "./prompt.js";
 import type { HypothesisEntry } from "../state/repo.js";
+
+async function tailLog(logPath: string, n: number): Promise<string[]> {
+  try {
+    const text = await readFile(logPath, "utf8");
+    const lines = text.split("\n").filter(Boolean);
+    return lines.slice(-n);
+  } catch { return []; }
+}
 
 export interface LaneState {
   id: string;
@@ -17,6 +26,7 @@ export interface LaneState {
   hasPrereg: boolean;
   hasBaseline: boolean;
   hasSmokes: boolean;
+  logLines: string[]; // last N lines from fleet.log
 }
 
 export interface FleetState {
@@ -59,6 +69,8 @@ export class FleetController {
     const lanes: LaneState[] = await Promise.all(active.map(async (h) => {
       const pid = await readPid(cwd, h.id);
       const stat = fleet.stats.find(s => s.id === h.id);
+      const logPath = buildLogPath(cwd, h.id);
+      const logLines = await tailLog(logPath, 20);
       return {
         id: h.id,
         claim: h.claim,
@@ -71,6 +83,7 @@ export class FleetController {
         hasPrereg: stat?.hasPrereg ?? false,
         hasBaseline: stat?.hasBaseline ?? false,
         hasSmokes: stat?.hasSmokes ?? false,
+        logLines,
       };
     }));
 
