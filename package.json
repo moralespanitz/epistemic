@@ -48,6 +48,7 @@
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
+    "d3": "^7.9.0",
     "tsx": "^4.22.4"
   },
   "pi": {
@@ -62,6 +63,7 @@
     ]
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "typescript": "^6.0.3"
   }
 }
