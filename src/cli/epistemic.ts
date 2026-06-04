@@ -120,14 +120,17 @@ async function run() {
 
   const interactive = !args.includes("-p") && !args.includes("--print");
 
-  // Auto-start graph server and expose its URL/port to the extension
+  // Auto-start graph server and expose its URL/port to the extension.
+  // Start it silently here — the browser is opened AFTER the intro animation
+  // so the user sees the Ξ reveal first, then the graph appears.
   const serverStartTime = Date.now();
+  let graphUrl: string | undefined;
   try {
     const graphServer = await startGraphServer(process.cwd(), serverStartTime);
     process.env.EPISTEMIC_GRAPH_URL = graphServer.url;
     process.env.EPISTEMIC_GRAPH_PORT = String(graphServer.port);
     process.env.EPISTEMIC_GRAPH_START_TIME = String(serverStartTime);
-    if (interactive) openBrowser(graphServer.url);
+    graphUrl = graphServer.url;
     process.on("exit", () => graphServer.close());
     process.on("SIGINT", () => { graphServer.close(); process.exit(0); });
   } catch {
@@ -136,6 +139,8 @@ async function run() {
 
   if (interactive) {
     try { await playIntro(); } catch { /* never block the agent on the intro */ }
+    // Intro is done — now reveal the graph in the browser.
+    if (graphUrl) openBrowser(graphUrl);
   }
   // Inject the epistemic extension so gates + /monitor work from ANY directory
   // (not only inside a repo whose .pi/settings.json discovers it). The extension's
