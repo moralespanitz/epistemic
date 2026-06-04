@@ -71,4 +71,19 @@ describe("buildGraphData", () => {
     const node = data.nodes[0];
     assert.equal(node.gates, undefined);
   });
+
+  it("reflects spendMap values in node.spent", () => {
+    const data = buildGraphData(RESEARCH_MD, HYPOTHESES_MD, { "RS-001": 12.5 }, "");
+    assert.equal(data.nodes.find(n => n.id === "RS-001")?.spent, 12.5);
+  });
+
+  it("returns stage 9 for CONFIRMED hypothesis present in resultsMd", () => {
+    const data = buildGraphData(RESEARCH_MD, HYPOTHESES_MD, {}, "RS-001 confirmed");
+    assert.equal(data.nodes.find(n => n.id === "RS-001")?.stage, 9);
+  });
+
+  it("returns stage 7 for CONFIRMED hypothesis absent from resultsMd", () => {
+    const data = buildGraphData(RESEARCH_MD, HYPOTHESES_MD, {}, "");
+    assert.equal(data.nodes.find(n => n.id === "RS-001")?.stage, 7);
+  });
 });

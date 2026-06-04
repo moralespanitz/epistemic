@@ -97,7 +97,8 @@ export function buildHypothesisHeader(
   if (!active) return [];
 
   const icon = STATUS_ICON[active.status] ?? "○";
-  const claim = active.claim.length > 40 ? active.claim.slice(0, 40) + "…" : active.claim;
+  const chars = [...active.claim];
+  const claim = chars.length > 40 ? chars.slice(0, 40).join("") + "…" : active.claim;
   const stage = deriveStageFromStatus(active.status);
   const cost = `$${spent.toFixed(2)}/$${active.costCap}`;
   const trials = trialsTotal > 0 ? ` · ${trialsDone}/${trialsTotal} runs` : "";
@@ -111,7 +112,7 @@ export function buildHypothesisHeader(
 
 function deriveStageFromStatus(status: HypothesisEntry["status"]): number {
   switch (status) {
-    case "OPEN":      return 2;
+    case "OPEN":      return 1;
     case "RUNNING":   return 4;
     case "CONFIRMED": return 7;
     case "FALSIFIED": return 6;

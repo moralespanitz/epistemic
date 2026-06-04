@@ -16,7 +16,11 @@ export interface GraphNode {
   spent: number;
   costCap: number;
   stage: number;
-  // Only present for registered hypotheses — undefined for proposals
+  /**
+   * Gate status — undefined for proposals (no hypothesis registered yet).
+   * For registered hypotheses, set by the server after disk checks.
+   * Consumers should check `isProposal` to distinguish the two undefined cases.
+   */
   gates?: GraphNodeGates;
   isProposal: boolean;
 }
@@ -88,6 +92,16 @@ export function buildGraphData(
   };
 }
 
+/**
+ * Maps hypothesis status to epistemic pipeline stage number (1–9):
+ *   1 = research-question (OPEN, unregistered)
+ *   2 = preregistration (OPEN, in progress)
+ *   4 = experiment-execution (RUNNING)
+ *   6 = falsification-review (FALSIFIED)
+ *   7 = kill-or-ship pending (CONFIRMED, results not yet in RESULTS.md)
+ *   8 = kill-or-ship (KILLED)
+ *   9 = verification-before-publication (CONFIRMED, in RESULTS.md)
+ */
 function deriveStageNumber(hypo: HypothesisEntry, resultsMd: string): number {
   switch (hypo.status) {
     case "OPEN":      return 1;
