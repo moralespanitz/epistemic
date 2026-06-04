@@ -9,6 +9,7 @@ import { registerKillCriteriaGate } from "../gates/kill-criteria.js";
 import { registerBaselineStalenessGate } from "../gates/baseline-staleness.js";
 import { registerHuggingFaceTools } from "../../../../src/extensions/huggingface.js";
 import { loadRepoState, loadHypotheses, getActiveHypothesis, getHypothesisSpend, loadLessons, summarizeLessons, loadBaselines, fileExists, type HypothesisEntry } from "../../../../src/state/repo.js";
+import { makeEventReader, type EventReader, type GraphEvent } from "../../../../src/graph/events.js";
 import { deriveStage, renderStageBlock, type StageFacts } from "../../../../src/state/stage.js";
 import { refreshEpistemicWidget, linesWidget } from "../../../../src/tui/widget.js";
 import { renderResearchSidebar } from "../layout/ResearchSidebar.js";
@@ -23,6 +24,7 @@ import type { EpistemicAPI } from "../plugin/api.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
+let graphEventReader: EventReader | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
 // Research views cycled by /view. "monitor" is the interactive dashboard.
@@ -165,6 +167,9 @@ export default async function (pi: ExtensionAPI) {
         navRegisteredCtxs.add(ctx as object);
       }
 
+      const startTime = parseInt(process.env.EPISTEMIC_GRAPH_START_TIME ?? "0") || Date.now();
+      graphEventReader = makeEventReader(ctx.cwd, startTime);
+
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
       // Research sidebar — Amber Lab right panel
       try {
@@ -178,6 +183,9 @@ export default async function (pi: ExtensionAPI) {
         refreshTimer = setInterval(() => {
           if (currentView !== "off" && sessionCtx) {
             renderCurrentView(sessionCtx).catch(() => {});
+          }
+          if (sessionCtx) {
+            handleGraphEvents(sessionCtx).catch(() => {});
           }
         }, 2000);
       }
@@ -397,6 +405,31 @@ function registerResearchCommands(api: EpistemicAPI) {
       else ctx.ui.notify?.(prompt, "info");
     },
   });
+}
+
+async function handleGraphEvents(ctx: ExtensionContext): Promise<void> {
+  if (!graphEventReader) return;
+  let events: GraphEvent[];
+  try { events = await graphEventReader.read(); } catch { return; }
+  const ctxAny = ctx as any;
+  for (const event of events) {
+    if (event.type === "new-research") {
+      if (ctxAny.sendUserMessage) await ctxAny.sendUserMessage(
+        "Start a new research document. Use the research-question skill to begin the Socratic brainstorm."
+      );
+    } else if (event.type === "open-hypothesis" && event.id) {
+      const entries = await loadHypotheses(ctx.cwd);
+      const entry = entries.find(e => e.id === event.id);
+      if (!entry) { ctx.ui.notify(`Hypothesis ${event.id} not found`, "warning"); continue; }
+      await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
+      ctx.ui.notify(`Switched to ${event.id}`, "info");
+      if (ctxAny.sendUserMessage) await ctxAny.sendUserMessage(
+        `Continue working on hypothesis ${event.id}: "${entry.claim}". Check current stage and proceed with the epistemic pipeline.`
+      );
+    } else if (event.type === "dismiss-proposal") {
+      ctx.ui.notify(`Proposal ${event.id ?? ""} dismissed`, "info");
+    }
+  }
 }
 
 async function safeReadFile(cwd: string, name: string): Promise<string | null> {
