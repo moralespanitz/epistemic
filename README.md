@@ -75,40 +75,49 @@ Ask naturally or use slash commands as shortcuts.
 
 ## Installation
 
-### Claude Code
+### epistemic CLI (macOS / Linux)
 
-epistemic is available via the [official Claude plugin marketplace](https://claude.com/plugins/epistemic).
+```bash
+curl -fsSL https://raw.githubusercontent.com/moralespanitz/epistemic/master/install.sh | sh
+```
 
-#### Official Marketplace
+To pin a version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moralespanitz/epistemic/master/install.sh | sh -s -- --ref v1.0.0
+```
+
+Installs to `~/.epistemic` with a symlink in `~/.local/bin/epistemic`. Requires Node.js v18+.
+
+Default model: `openrouter/deepseek/deepseek-v4-pro`. If you have OpenAI Codex authed, it uses that instead. If nothing is authed, pi prompts `/login`.
+
+### Skills only (Claude Code, Codex, any agent)
+
+Installs just the research methodology skills — no TUI, no runtime dependency.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moralespanitz/epistemic/master/install-skills.sh | sh
+```
+
+With the optional Hugging Face skills:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moralespanitz/epistemic/master/install-skills.sh | sh -s -- --hf
+```
+
+Skills land in `~/.claude/skills/` and are active in Claude Code immediately.
+
+### Claude Code plugin marketplace
 
 ```bash
 /plugin install epistemic@claude-plugins-official
 ```
 
-#### Epistemic Marketplace
+Or via the epistemic marketplace:
 
 ```bash
 /plugin marketplace add moralespanitz/epistemic
 /plugin install epistemic-skills@epistemic
-```
-
-#### Local install (symlink, stays in sync with this repo)
-
-```bash
-git clone git@github.com:moralespanitz/epistemic.git && cd epistemic
-
-# Core methodology skills
-for s in using-epistemic epistemic research-question preregistration baseline-reproduction \
-  experiment-execution statistical-rigor falsification-review surprise-triage \
-  kill-or-ship verification-before-publication; do
-  ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
-done
-
-# Optional: Hugging Face research stack
-for s in huggingface-papers hf-cli huggingface-datasets \
-  huggingface-community-evals huggingface-trackio huggingface-llm-trainer; do
-  ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
-done
 ```
 
 Hooks (prereg gate + session bootstrap) install automatically via the marketplace, or manually:
@@ -128,18 +137,6 @@ epistemic hooks on | off  # toggle without restart
 
 - In the Codex app, click **Plugins** in the sidebar.
 - Find `epistemic` in the Research section and click `+`.
-
-### epistemic TUI
-
-The full TUI — 3D Ξ header, monitor, fleet runner — requires the local install:
-
-```bash
-git clone git@github.com:moralespanitz/epistemic.git && cd epistemic
-npm install
-npm link            # makes `epistemic` available everywhere
-```
-
-Default model: `openrouter/deepseek/deepseek-v4-pro`. If you have OpenAI Codex authed, it uses that instead. If nothing is authed, pi prompts `/login`.
 
 ---
 
