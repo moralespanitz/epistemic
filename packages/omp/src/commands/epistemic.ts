@@ -24,6 +24,10 @@ import type { EpistemicAPI } from "../plugin/api.js";
 
 let initialized = false;
 let sessionCtx: ExtensionContext | null = null;
+// The raw pi ExtensionAPI — the ONLY object with a working sendUserMessage.
+// Command-handler ctx does NOT expose it (ExtensionCommandContext lacks it),
+// so all turn-triggering message injection must go through this.
+let piApi: ExtensionAPI | null = null;
 let graphEventReader: EventReader | null = null;
 let treeVisible = false; // whether the /tree widget is currently shown
 
@@ -41,6 +45,25 @@ let lastFleet: Fleet | null = null;
 const ACTIVE_GATES = ["prereg", "judge-lock", "smoke", "cost-ledger", "claim-interceptor", "kill-criteria", "baseline-staleness"];
 
 const TREE_KEY = "epistemic-tree";
+
+/**
+ * Send a user message that ACTUALLY triggers an agent turn.
+ *
+ * Command-handler ctx (ExtensionCommandContext) does NOT expose
+ * sendUserMessage — only the raw ExtensionAPI (`pi`) does. Calling
+ * ctx.sendUserMessage silently no-ops (the `?.` swallows undefined),
+ * which is why /research appeared to do nothing (0 tokens). Route every
+ * turn-triggering injection through the captured pi API instead.
+ */
+async function sendTurn(ctx: any, text: string): Promise<boolean> {
+  const send = piApi?.sendUserMessage ?? ctx?.sendUserMessage;
+  if (!send) {
+    ctx?.ui?.notify?.("Could not start a turn — sendUserMessage unavailable", "warning");
+    return false;
+  }
+  await send.call(piApi ?? ctx, text);
+  return true;
+}
 
 /** Render the decision-tree widget into omp's UI (below the editor). */
 async function showTree(ctx: any) {
@@ -105,8 +128,7 @@ async function openSelected(ctx: any) {
   const action = choice && ACTION_LABELS[choice];
   if (!action) return;
   const prompt = actionPrompt(action, entry);
-  if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
-  else ctx.ui.notify?.(prompt, "info");
+  await sendTurn(ctx, prompt);
 }
 
 /** Arrow-key navigation while monitor mode is active. Returns true if consumed. */
@@ -137,7 +159,7 @@ async function handleKillShipKey(data: string, ctx: any): Promise<void> {
   const decision = actions[key]!;
 
   ctx.ui.notify?.(`Decision: ${decision} — processing...`, "info");
-  await (ctx as any).sendUserMessage?.(
+  await sendTurn(ctx,
     `Execute the kill-or-ship skill with decision: ${decision} for hypothesis ${active.id}. Follow the skill instructions exactly.`
   );
 }
@@ -156,6 +178,7 @@ const navRegisteredCtxs = new WeakSet<object>();
 export default async function (pi: ExtensionAPI) {
   if (registeredInstances.has(pi as object)) return;
   registeredInstances.add(pi as object);
+  piApi = pi; // capture for turn-triggering sendUserMessage (ctx lacks it)
   const api = createEpistemicAPI(pi);
 
   // ─── Session start ───────────────────────────────────────────
@@ -345,9 +368,8 @@ function registerResearchCommands(api: EpistemicAPI) {
         `2. Recommend one, and draft its plan: claim, falsifier, baseline to beat, judge (model+prompt+temp+seed), sample size, cost cap, compute target, and the best-case conclusion.`,
         `3. Show the plan and ask me to APPROVE or refine. Only after I approve: register it in HYPOTHESES.md as OPEN and run /skill:preregistration. The prereg gate keeps experiments blocked until that's done.`,
       ].join("\n");
-      if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
-      else if (ctx.ui.setEditorText) ctx.ui.setEditorText(prompt);
-      else ctx.ui.notify?.(prompt, "info");
+      const sent = await sendTurn(ctx, prompt);
+      if (!sent && ctx.ui.setEditorText) ctx.ui.setEditorText(prompt);
       ctx.ui.notify?.("Ξ idea funnel started — brainstorm → plan → approve → run", "info");
     },
   });
@@ -427,12 +449,11 @@ function registerResearchCommands(api: EpistemicAPI) {
       }
       // Surface the composed instruction so the user can send it in the real chat.
       ctx.ui.setStatus?.("epistemic-action", `Ξ ${id}: ${action}`);
-      if (ctx.sendUserMessage) await ctx.sendUserMessage(prompt);
-      else ctx.ui.notify?.(prompt, "info");
+      await sendTurn(ctx, prompt);
     },
   });
 
-  // /new — start a new research document with Socratic brainstorming
+  // /research — start a new research document with Socratic brainstorming
   api.registerCommand("research", {
     description: "Start a new research document (Socratic brainstorm)",
     handler: async (_args, ctx) => {
@@ -442,7 +463,7 @@ function registerResearchCommands(api: EpistemicAPI) {
         return;
       }
       ctx.ui.notify("Starting research brainstorm...", "info");
-      await (ctx as any).sendUserMessage?.(
+      await sendTurn(ctx,
         "Begin a new research document. Follow the research-question skill: ask one Socratic question at a time to fill the Research Document template from docs/research-document.md. When all slots are filled, write RESEARCH.md to the repo root."
       );
     },
@@ -470,11 +491,11 @@ async function handleGraphEvents(ctx: ExtensionContext): Promise<void> {
   if (!graphEventReader) return;
   let events: GraphEvent[];
   try { events = await graphEventReader.read(); } catch { return; }
-  const ctxAny = ctx as any;
   for (const event of events) {
     if (event.type === "new-research") {
-      if (ctxAny.sendUserMessage) await ctxAny.sendUserMessage(
-        "Start a new research document. Use the research-question skill to begin the Socratic brainstorm."
+      ctx.ui.notify("Starting research brainstorm...", "info");
+      await sendTurn(ctx,
+        "Begin a new research document. Follow the research-question skill: ask one Socratic question at a time to fill the Research Document template from docs/research-document.md. When all slots are filled, write RESEARCH.md to the repo root."
       );
     } else if (event.type === "open-hypothesis" && event.id) {
       const entries = await loadHypotheses(ctx.cwd);
@@ -482,7 +503,7 @@ async function handleGraphEvents(ctx: ExtensionContext): Promise<void> {
       if (!entry) { ctx.ui.notify(`Hypothesis ${event.id} not found`, "warning"); continue; }
       await refreshEpistemicWidget(ctx, ctx.cwd, ACTIVE_GATES);
       ctx.ui.notify(`Switched to ${event.id}`, "info");
-      if (ctxAny.sendUserMessage) await ctxAny.sendUserMessage(
+      await sendTurn(ctx,
         `Continue working on hypothesis ${event.id}: "${entry.claim}". Check current stage and proceed with the epistemic pipeline.`
       );
     } else if (event.type === "dismiss-proposal") {
