@@ -22,7 +22,7 @@ export function parseResearchDocument(content: string): ResearchDocument {
 }
 
 function parseStories(content: string): ResearchStory[] {
-  const section10 = content.match(/##\s*10\.?\s+Research stories?\s*\n([\s\S]*?)(?=\n##\s*\d+\.|$)/i);
+  const section10 = content.match(/##\s*10\.?\s+Research stories?\s*\n([\s\S]*?)(?=\n##\s*\d|$)/i);
   if (!section10) return [];
 
   const stories: ResearchStory[] = [];
@@ -30,11 +30,11 @@ function parseStories(content: string): ResearchStory[] {
     const heading = block.match(/###\s*10\.\d+\.\s*(.+)/);
     if (!heading) continue;
 
-    const id = block.match(/\*\*ID\*\*:\s*(RS-\d+)/i)?.[1]?.trim();
+    const id = block.match(/\*\*ID\*\*:[^\S\n]*(RS-\d+)/i)?.[1]?.trim();
     if (!id) continue;
 
-    const desc = block.match(/\*\*Description\*\*:\s*([^\n]+(?:\n(?![-\s]*\*\*)[^\n]+)*)/i)?.[1]?.trim() ?? "";
-    const valid = block.match(/\*\*Validation criteria\*\*:\s*([\s\S]*?)(?=\n\s*-\s*\*\*|\n###|$)/i)?.[1]?.trim() ?? "";
+    const desc = block.match(/\*\*Description\*\*:[^\S\n]*([^\n]+(?:\n(?![-\s]*\*\*)[^\n]+)*)/i)?.[1]?.trim() ?? "";
+    const valid = block.match(/\*\*Validation criteria\*\*:[^\S\n]*([\s\S]*?)(?=\n\s*-\s*\*\*|\n###|$)/i)?.[1]?.trim() ?? "";
 
     stories.push({ id, title: heading[1].trim(), description: desc, validationCriteria: valid });
   }

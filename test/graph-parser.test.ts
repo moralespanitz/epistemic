@@ -54,4 +54,25 @@ describe("parseResearchDocument", () => {
     const doc = parseResearchDocument("## 1. Research overview\n");
     assert.equal(doc.title, "Untitled Research");
   });
+
+  it("parses RS-002 id and title", () => {
+    const { stories } = parseResearchDocument(SAMPLE);
+    assert.equal(stories[1].id, "RS-002");
+    assert.equal(stories[1].title, "Test CoT prompting");
+  });
+
+  it("handles CRLF line endings", () => {
+    const crlf = SAMPLE.replace(/\n/g, "\r\n");
+    const doc = parseResearchDocument(crlf);
+    assert.equal(doc.title, "CoT for Code");
+    assert.equal(doc.stories.length, 2);
+    assert.equal(doc.stories[0].id, "RS-001");
+  });
+
+  it("returns empty string for blank description field", () => {
+    const content = `# RD: Test\n## 1. Research overview\n### 1.2 Research summary\nSummary.\n## 10. Research stories\n### 10.1. Story\n- **ID**: RS-001\n- **Description**: \n- **Validation criteria**: Must pass.\n`;
+    const { stories } = parseResearchDocument(content);
+    assert.equal(stories[0].description, "");
+    assert.equal(stories[0].validationCriteria, "Must pass.");
+  });
 });
