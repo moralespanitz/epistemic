@@ -13,6 +13,13 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+
+// Ensure the hf CLI (installed via pip --user) is on PATH for this session.
+const HF_USER_BIN = join(homedir(), "Library", "Python", "3.9", "bin");
+if (!process.env.PATH?.includes(HF_USER_BIN)) {
+  process.env.PATH = `${HF_USER_BIN}:${process.env.PATH ?? ""}`;
+}
 
 // Instant enable/disable: `epistemic hooks off` drops this sentinel.
 if (existsSync(join(homedir(), ".claude", "epistemic-hooks.disabled"))) process.exit(0);
@@ -40,8 +47,26 @@ process.stdin.on("end", async () => {
     usingEpistemic = "Error reading using-epistemic skill. Invoke the `epistemic` skill before empirical work.";
   }
 
+  // Check whether the hf CLI is authenticated.
+  let hfUser = "";
+  try { hfUser = execSync("hf auth whoami --format json 2>/dev/null", { env: process.env }).toString().trim(); } catch { /* not logged in */ }
+
+  const hfStatus = hfUser
+    ? `hf CLI authenticated: ${hfUser}`
+    : "hf CLI installed but not authenticated — run \`hf auth login\` to unlock gated models/datasets.";
+
   const context = [
     "Ξ Epistemic research discipline is active in this repo.",
+    "",
+    "## Hugging Face Research Stack",
+    "The following HF skills are available — load any with /skill:<name>:",
+    "  - huggingface-papers   : read arXiv/HF papers as markdown, structured metadata",
+    "  - hf-cli               : download/upload models, datasets, manage repos and jobs",
+    "  - huggingface-datasets : paginate rows, search, filter, get parquet URLs",
+    "  - huggingface-community-evals : run evals locally with inspect-ai or lighteval",
+    "  - huggingface-trackio  : track/visualize ML experiments; log metrics and alerts",
+    "  - huggingface-llm-trainer : fine-tune with TRL (SFT/DPO/GRPO) on HF Jobs",
+    `  Status: ${hfStatus}`,
     "",
     "Below is the full content of your `using-epistemic` bootstrap skill. Follow it",
     "for empirical/eval/benchmark/\"is X better than Y\" work. Use the Skill tool",

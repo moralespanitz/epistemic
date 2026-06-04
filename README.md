@@ -28,13 +28,60 @@ npm install
 npm link            # makes `epistemic` available everywhere
 ```
 
-Set a model API key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or
-`OPENROUTER_API_KEY`), then run it from any research repo:
+Authenticate the Hugging Face CLI to unlock gated models and datasets:
 
 ```bash
-epistemic           # the agent + epistemic discipline
-epistemic monitor   # full-screen interactive experiment monitor
+hf auth login       # paste a token from huggingface.co/settings/tokens
 ```
+
+Run from any research repo:
+
+```bash
+epistemic           # 3D intro → research agent (defaults to OpenAI Codex)
+epistemic monitor   # full-screen interactive experiment monitor
+epistemic fleet     # parallel agent fleet runner
+```
+
+---
+
+## What's inside
+
+### 3D intro + persistent header
+
+On launch, epistemic plays a real-time 3D animation of the Ξ mark — a
+software rasterizer (donut.c technique) with per-cell Z-buffer, Lambert +
+ambient shading, and a depth-modulated amber glow — then transitions to the
+main TUI where the Ξ mark persists as a live 3D header at the top of every
+session, showing the active model and quick-reference tips.
+
+The renderer lives in `src/tui/render3d.ts` and is shared between the startup
+animation (`src/cli/intro.ts`) and the persistent header extension
+(`.pi/extensions/welcome-header/`).
+
+### Default model: OpenAI Codex
+
+epistemic defaults to `openai-codex/gpt-5.5` when you have a ChatGPT Plus/Pro
+subscription (OAuth via `/login`). Fallback priority: Codex → OpenRouter →
+OpenAI → Anthropic.
+
+### Hugging Face research stack
+
+Six HF skills are bundled in `skills/` and auto-discovered at startup. Load any
+with `/skill:<name>` or by describing the task:
+
+| Skill | What it unlocks |
+|---|---|
+| `huggingface-papers` | Read any arXiv paper as markdown; structured metadata (authors, linked models, citations) |
+| `hf-cli` | Download/upload models & datasets, manage repos, run HF Jobs |
+| `huggingface-datasets` | Paginate rows, full-text search, filter predicates, get Parquet URLs |
+| `huggingface-community-evals` | Run evals locally with `inspect-ai` or `lighteval` |
+| `huggingface-trackio` | Log metrics + alerts during training, sync real-time dashboard to HF Space |
+| `huggingface-llm-trainer` | Fine-tune with TRL (SFT/DPO/GRPO) on HF Jobs cloud GPUs |
+
+The session-start hook announces auth status and available skills at the top of
+every research session, so the agent knows what tools exist without being told.
+
+---
 
 ### …or just the skills, in Claude Code
 
@@ -79,13 +126,11 @@ to `~/.claude/settings.json` (`SessionStart` + `PreToolUse` matcher `Bash`).
 Manage them with `epistemic hooks`:
 
 ```bash
-epistemic hooks status          # what's installed / enabled, and any other hooks
+epistemic hooks status          # what's installed / enabled
 epistemic hooks on | off        # enable/disable instantly (no restart)
 epistemic hooks install|remove  # add/remove the epistemic hooks in settings.json
-epistemic hooks clean           # remove unused hooks (e.g. Superset) + prune empties
+epistemic hooks clean           # remove unused hooks + prune empties
 ```
-
-Every settings write backs up to `~/.claude/settings.json.bak` first.
 
 Activate/deactivate the skills anytime with `epistemic skills`:
 
@@ -93,20 +138,6 @@ Activate/deactivate the skills anytime with `epistemic skills`:
 epistemic skills status   # which epistemic skills are active in Claude Code
 epistemic skills on       # activate (symlink all into ~/.claude/skills)
 epistemic skills off      # deactivate (removes only our symlinks)
-```
-
-(If you install via the marketplace instead, Claude Code's `/plugin` menu toggles
-the whole `epistemic-skills` plugin on/off natively.)
-
-Then Claude Code surfaces the skills automatically (or invoke one explicitly,
-e.g. *"use the preregistration skill"*). Claude Code currently has the bootstrap
-hook and prereg Bash gate; the fuller judge-lock, cost-ledger, claim-interceptor,
-and monitor runtime live in the OMP harness.
-
-Run the Claude harness smoke tests with:
-
-```bash
-npm run test:claude-skills
 ```
 
 ### Codex plugin metadata
@@ -123,10 +154,15 @@ bootstrap contract. Runtime gates and dashboards remain harness-specific.
 |------|-----------|
 | `packages/omp/` | `@epistemic/omp` — forked oh-my-pi TUI shell (Amber Lab theme, ResearchSidebar) |
 | `src/` | Extension wired into omp: gates, commands, monitor, board |
-| `skills/` | Claude Code skills (methodology manuals) |
+| `src/tui/render3d.ts` | Shared software 3D renderer (Z-buffer, Lambert shading, amber glow) |
+| `src/cli/intro.ts` | Startup animation (3D spin → name reveal) |
+| `skills/` | Research methodology skills + 6 HF skills |
 | `hooks/` | Claude Code hooks (SessionStart, prereg gate) |
+| `.pi/extensions/welcome-header/` | Persistent 3D Ξ header in the TUI |
+| `.pi/settings.json` | Project settings (Codex default, theme, extensions) |
 | `.claude-plugin/` | Claude Code plugin manifest and marketplace metadata |
 | `.codex-plugin/` | Codex plugin manifest for the portable skill core |
+| `themes/epistemic.json` | Amber-on-transparent dark theme |
 | `tests/claude-code/` | Headless Claude Code harness tests for skill triggering |
 
 ---
@@ -138,60 +174,10 @@ bootstrap contract. Runtime gates and dashboards remain harness-specific.
 | **Portable skill core** | `using-epistemic`, `epistemic`, and stage skills. This is the shared method across harnesses. |
 | **Harness bootstrap** | Claude `SessionStart`, Codex manifest, and future adapters load the skill core at the right time. |
 | **Runtime gates** | Invisible enforcement that blocks rule violations automatically where the harness supports hooks. |
-| **Monitor** | OMP-only `/monitor` — navigate the experiment tree, drill into a hypothesis, approve / reject / modify. Arrow keys. |
+| **Monitor** | `/monitor` — navigate the experiment tree, drill into a hypothesis, approve / reject / modify. Arrow keys. |
+| **Fleet** | `/fleet` — parallel agent fleet runner for multi-experiment orchestration. |
+| **HF stack** | 6 HF skills (papers, datasets, evals, training, tracking, CLI) bundled and auto-discovered. |
 | **State** | File-based ledger: `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `experiments/{id}/`. |
-| **Tools** | HuggingFace dataset metadata, paper search, cross-run lessons. |
-
-If the skills are well written, the gates never fire — the agent follows the
-manual. The gates are the safety net.
-
----
-
-## Plugin API
-
-`@epistemic/omp` exposes a typed plugin API so you can extend epistemic with your own commands, event handlers, and gates — without touching pi's raw `any`-typed interface.
-
-```typescript
-import type { EpistemicPlugin } from "@epistemic/omp";
-
-export const myPlugin: EpistemicPlugin = (api) => {
-  // Register a /slash command
-  api.registerCommand("my-cmd", {
-    description: "My custom command",
-    handler: async (args, ctx) => {
-      ctx.ui.notify(`Running my-cmd with: ${args}`, "info");
-    },
-  });
-
-  // Subscribe to an event
-  api.on("session_start", async (_event, ctx) => {
-    ctx.ui.setStatus?.("my-plugin", "● active");
-  });
-
-  // Register a gate that blocks tool calls matching a condition
-  api.gate(async (event, ctx) => {
-    // Return { block: true, reason: "..." } to interrupt
-  });
-};
-```
-
-Load your plugin by passing it an `EpistemicAPI` instance:
-
-```typescript
-import { createEpistemicAPI } from "@epistemic/omp";
-
-// Inside your pi extension factory:
-export default async function(pi: any) {
-  const api = createEpistemicAPI(pi);
-  await myPlugin(api);
-}
-```
-
-| Method | What it does |
-|--------|-------------|
-| `registerCommand(name, opts)` | Registers a `/name` slash command in the agent chat |
-| `on(event, handler)` | Subscribes to `session_start`, `session_shutdown`, `before_agent_start`, or `tool_call` |
-| `gate(handler)` | Registers a `tool_call` gate — return `{ block, reason }` to interrupt |
 
 ---
 
@@ -219,72 +205,42 @@ verification-before-publication
 
 ### 1. `/skill:research-question` — idea → testable hypothesis
 
-The agent asks one question at a time, Socratic-style, until the claim is
-falsifiable, the falsifier is concrete, and the budget is realistic. **Before
-settling on one hypothesis**, it generates 2–3 competing explanations, each with
-a unique disconfirming prediction; you pick one, the others are archived in
-`experiments/{id}/alternatives/`.
-
-| Field | What it is |
-|-------|------------|
-| Claim | "X outperforms Y by Z on benchmark W" |
-| Falsifier | "If we see A under conditions B, the claim is wrong" |
-| Best-case conclusion | What success actually looks like (low expectations prevent over-investment) |
-| Sample size (n) | Number of runs (default 30) |
-| Judge config | Model, prompt, temperature, seed |
-| Baseline reference | Competitor name + source + score + version + date |
-| Cost cap | USD budget (default $50) |
-| Compute target | Where experiments run: `local`, `docker`, or `modal` |
-
-If the falsifier isn't empirically testable, the agent rejects it and asks you to reframe.
+Socratic-style questioning until the claim is falsifiable, the falsifier is
+concrete, and the budget is realistic. Generates 2–3 competing explanations
+before settling; alternatives archived in `experiments/{id}/alternatives/`.
 
 ### 2. `/skill:preregistration` — lock it before running
 
-Validates all fields, then creates `experiments/{id}/prereg.md`, hashes the
-judge config → `judge.lock`, generates the execution scaffold for the compute
-target (Dockerfile / modal-app.py / environment.lock), and commits it. After
-this, the **prereg gate** blocks unregistered experiments and the **judge/env
-locks** block drift.
+Validates all fields, creates `experiments/{id}/prereg.md`, hashes the judge
+config → `judge.lock`, generates the execution scaffold, commits it. After
+this, the **prereg gate** blocks unregistered experiments.
 
 ### 3. `/skill:baseline-reproduction` — you can't beat what you can't run
 
-Finds and reads the competitor's paper, validates any HuggingFace datasets,
-reproduces the result under *your locked judge*, and records the exact score,
-pinned revision, version, date, and command. Baselines older than 30 days must
-be refreshed; if you can't reproduce a number, the discrepancy is documented and
-your claim becomes relative to what you *can* reproduce.
+Reads the competitor's paper (use `huggingface-papers` to fetch it), validates
+any HF datasets, reproduces the result under your locked judge, records the
+exact score, pinned revision, version, date, and command.
 
 ### 4. `/skill:experiment-execution` — run with discipline
 
 Confirms `prereg.md` + locks match, routes execution by compute target, logs
-every API/compute cost to `.epistemic/cost-ledger.jsonl`, runs the full sample
-size, and writes results to `experiments/{id}/smokes/` — **provisional only**. No
-mid-run methodology changes.
+every cost to `.epistemic/cost-ledger.jsonl`, writes provisional results.
 
 ### 5. `/skill:statistical-rigor` — no number leaves smokes/ unjustified
 
-Assumption checking (normality, variance, independence, ceiling/floor) → test
-selection → effect sizes (Cohen's d, η², R²) alongside p-values → multiple-
-comparison correction → APA reporting with exact p-values.
+Assumption checking → test selection → effect sizes + p-values →
+multiple-comparison correction → APA reporting.
 
 ### 6. `/skill:falsification-review` — guilty until proven defensible
 
-The claim is dispatched to ≥2 adversary models, each returning the cheapest
-experiment that would disprove it.
-
-| Result | What happens |
-|--------|-------------|
-| All defensible | Promoted from `smokes/` to `RESULTS.md` |
-| Any falsified | **Blocked** — the claim can't ship |
-| Mixed | Allowed with a caveat tag |
-
-If the cheapest disconfirming experiment is <$1 and unrun, the agent insists on running it first.
+Dispatches the claim to ≥2 adversary models, each returning the cheapest
+experiment that would disprove it. Promoted to `RESULTS.md` only if all
+defenses pass.
 
 ### 7. `/skill:surprise-triage` — when results diverge >15%, stop
 
-Produces ranked explanations (sampling, judge mismatch, data leakage, ceiling
-effects, prompt drift, version change, bugs) and the cheapest disambiguating
-test for each. Surprising numbers are blocked from `RESULTS.md` until triage completes.
+Ranked explanations + cheapest disambiguating test for each. Surprising numbers
+blocked from `RESULTS.md` until triage completes.
 
 ### 8. `/skill:kill-or-ship` — decide
 
@@ -292,26 +248,18 @@ test for each. Surprising numbers are blocked from `RESULTS.md` until triage com
 |--------|------|--------|
 | **KILL** | Spend > 1.5× cap, or >21 days stale | Write `KILLED.md`, record a lesson |
 | **PIVOT** | Failed but suggests a new direction | Kill old, open a new hypothesis |
-| **REFINE** | Same claim, adjusted method | Re-run from execution (needs override) |
-| **RECOMMIT** | Continue past kill criteria | New cap + override |
 | **SHIP** | All gates pass, falsification clean | Tag and publish |
-
-Sunk-cost rule: killed hypotheses can't be silently revived. Expected
-kill-to-ship ratio is ~5:1 — killing fast is the point.
 
 ### 9. `/skill:verification-before-publication` — evidence before claims
 
-A full checklist before any claim of completion: locks present and matching,
-baselines fresh and reproduced, falsifier verdicts evaluated, cost ledger
-current, stats done, alternatives documented, and `RESULTS.md` containing only
-confirmed, falsification-passed results.
+Full checklist: locks match, baselines fresh, falsifier verdicts evaluated,
+cost ledger current, stats done, alternatives documented.
 
 ---
 
 ## The monitor
 
-`/monitor` (or `epistemic monitor`) opens a full-screen interactive view — your
-research program as a decision tree, with live experiment status:
+`/monitor` (or `epistemic monitor`) opens a full-screen interactive view:
 
 ```
 Ξ epistemic · mission control   [████░░ 16%] $34/$210   2 running · 1 shipped · 1 killed
@@ -326,11 +274,8 @@ research program as a decision tree, with live experiment status:
 |-----|--------|
 | `↑` / `↓` | select an experiment |
 | `→` / `←` | open detail / back to tree |
-| `enter` | actions: chat / approve (ship) / reject (kill) / modify |
+| `enter` | actions: chat / approve / reject / modify |
 | `q` | back to the chat |
-
-Author the tree with optional `- **Parent:** <id>` and
-`- **Decision:** <cond> → <ifTrue> | else → <ifFalse>` fields in `HYPOTHESES.md`.
 
 ---
 

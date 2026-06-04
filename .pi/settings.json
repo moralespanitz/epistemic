@@ -3,10 +3,15 @@
     ".."
   ],
   "extensions": [
-    ".pi/extensions/claude-auth/index.ts"
+    ".pi/extensions/claude-auth/index.ts",
+    ".pi/extensions/welcome-header/index.ts"
   ],
   "quietStartup": true,
   "theme": "epistemic",
   "defaultProvider": "openrouter",
-  "defaultModel": "openrouter/deepseek/deepseek-v4-pro"
+  "defaultModel": "openrouter/deepseek/deepseek-v4-pro",
+  "enableSkillCommands": true,
+  "skills": [
+    "~/.agents/skills"
+  ]
 }
