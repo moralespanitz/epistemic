@@ -15,6 +15,7 @@ import { homedir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 
 const SKILL_NAMES = [
+  "using-epistemic",
   "epistemic",
   "research-question",
   "preregistration",

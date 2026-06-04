@@ -1,0 +1,44 @@
+{
+  "name": "epistemic",
+  "version": "0.1.0",
+  "description": "Research-discipline skills for agentic empirical work: falsifiable hypotheses, preregistration, baseline reproduction, statistical rigor, falsification, and kill-or-ship decisions.",
+  "author": {
+    "name": "Alexander Morales-Panitz",
+    "email": "alexander@moralespanitz.com",
+    "url": "https://github.com/moralespanitz"
+  },
+  "homepage": "https://github.com/moralespanitz/epistemic",
+  "repository": "https://github.com/moralespanitz/epistemic",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "experiments",
+    "evals",
+    "benchmarks",
+    "preregistration",
+    "falsification",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Epistemic",
+    "shortDescription": "Research discipline for coding agents",
+    "longDescription": "Use Epistemic to guide empirical work through research-question framing, preregistration, baseline reproduction, experiment execution, statistical rigor, falsification review, surprise triage, kill-or-ship decisions, and publication verification.",
+    "developerName": "Alexander Morales-Panitz",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "I want to test whether this approach beats the baseline.",
+      "Help me turn this research idea into a preregistered experiment."
+    ],
+    "websiteURL": "https://github.com/moralespanitz/epistemic",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#D97706",
+    "screenshots": []
+  }
+}

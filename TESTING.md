@@ -9,7 +9,7 @@ The navigation, key handling, action composition, and rendering are pure
 functions — unit-tested with Node's built-in runner:
 
 ```bash
-npm test        # tsx --test test/*.test.ts
+npm test        # non-TUI unit tests
 ```
 
 Covers: arrow-key parsing, selection bounds, view switching, the
@@ -24,6 +24,12 @@ pty, no tmux — so it runs anywhere, including CI:
 
 ```bash
 npx tsx --test test/tui-drive.test.ts
+```
+
+Run it directly:
+
+```bash
+npm run test:tui:pipe
 ```
 
 It launches the real `epistemic monitor`, sends `↓ → ←`, asserts the screen

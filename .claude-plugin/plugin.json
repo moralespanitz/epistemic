@@ -1,7 +1,7 @@
 {
   "name": "epistemic-skills",
   "version": "0.1.0",
-  "description": "Research-discipline skills for Claude Code: turn an idea into a falsifiable hypothesis, pre-register it, reproduce the baseline, run experiments, attack the result, and decide kill-or-ship. An add-on (pairs with the epistemic agent), not a replacement.",
+  "description": "Research-discipline skills for Claude Code: bootstrap empirical sessions, turn ideas into falsifiable hypotheses, pre-register experiments, reproduce baselines, run studies, attack results, and decide kill-or-ship. An add-on that pairs with the Epistemic OMP agent.",
   "author": {
     "name": "Alexander Morales-Panitz",
     "email": "alexander@moralespanitz.com",

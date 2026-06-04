@@ -9,8 +9,10 @@ experiment, attack your own claim, and decide to ship or kill** — with an
 interactive monitor of every experiment and gates that enforce the rules.
 
 Inspired by the norms of good ML research and the *superpowers* skill format:
-the **skills** are the manual the agent follows step by step; the **gates** are
-the safety net that enforces it.
+the **skills** are the portable manual the agent follows step by step; the
+**harnesses** inject that manual into Claude Code, Codex, or OMP; and the
+**gates** are the safety net that enforces it where the harness supports runtime
+hooks.
 
 ```bash
 epistemic
@@ -47,24 +49,26 @@ the pi agent:
 /plugin install epistemic-skills@epistemic
 ```
 
-Or invoke the umbrella **`epistemic`** skill (*"use the epistemic mechanism"*) —
-it orchestrates the whole pipeline and lists the gates to self-enforce.
+The Claude harness includes a Superpowers-style bootstrap skill,
+**`using-epistemic`**. In research repos it is injected at `SessionStart` and
+tells Claude to load the umbrella **`epistemic`** skill before empirical work,
+then the correct stage skill.
 
 Local install without the marketplace (symlink, stays in sync with this repo):
 
 ```bash
-for s in epistemic research-question preregistration baseline-reproduction \
+for s in using-epistemic epistemic research-question preregistration baseline-reproduction \
   experiment-execution statistical-rigor falsification-review surprise-triage \
   kill-or-ship verification-before-publication; do
   ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
 done
 ```
 
-**Superpowers-style enforcement (hooks).** The plugin ships hooks that make the
-discipline active, not just available:
+**Superpowers-style enforcement (hooks).** The Claude plugin ships hooks that
+make the discipline active, not just available:
 - **SessionStart** — in a research repo (has `HYPOTHESES.md` / `experiments/`),
-  injects the epistemic preamble so every session routes through the mechanism
-  (silent elsewhere).
+  injects the full `using-epistemic` bootstrap so every session routes through
+  the mechanism (silent elsewhere).
 - **PreToolUse (Bash)** — a *prereg gate*: if an experiment-shaped command runs
   with no `experiments/<id>/prereg.md`, it interrupts and asks you to
   pre-register first (flip `ASK→"deny"` in `hooks/prereg-gate.mjs` to hard-block).
@@ -95,9 +99,21 @@ epistemic skills off      # deactivate (removes only our symlinks)
 the whole `epistemic-skills` plugin on/off natively.)
 
 Then Claude Code surfaces the skills automatically (or invoke one explicitly,
-e.g. *"use the preregistration skill"*). Note: the hard **gate enforcement**
-(blocking experiments before prereg, judge-lock, cost ledger) lives in the pi
-agent above — in Claude Code the skills are methodology guidance.
+e.g. *"use the preregistration skill"*). Claude Code currently has the bootstrap
+hook and prereg Bash gate; the fuller judge-lock, cost-ledger, claim-interceptor,
+and monitor runtime live in the OMP harness.
+
+Run the Claude harness smoke tests with:
+
+```bash
+npm run test:claude-skills
+```
+
+### Codex plugin metadata
+
+The portable skill core is also packaged for Codex via `.codex-plugin/plugin.json`.
+Codex gets the same `skills/` library and should use `using-epistemic` as the
+bootstrap contract. Runtime gates and dashboards remain harness-specific.
 
 ---
 
@@ -109,6 +125,9 @@ agent above — in Claude Code the skills are methodology guidance.
 | `src/` | Extension wired into omp: gates, commands, monitor, board |
 | `skills/` | Claude Code skills (methodology manuals) |
 | `hooks/` | Claude Code hooks (SessionStart, prereg gate) |
+| `.claude-plugin/` | Claude Code plugin manifest and marketplace metadata |
+| `.codex-plugin/` | Codex plugin manifest for the portable skill core |
+| `tests/claude-code/` | Headless Claude Code harness tests for skill triggering |
 
 ---
 
@@ -116,9 +135,10 @@ agent above — in Claude Code the skills are methodology guidance.
 
 | Layer | What it does |
 |-------|-------------|
-| **Skills** | Detailed manuals the agent follows step by step — the primary UX. |
-| **Gates** | Invisible enforcement that blocks rule violations automatically. |
-| **Monitor** | `/monitor` — navigate the experiment tree, drill into a hypothesis, approve / reject / modify. Arrow keys. |
+| **Portable skill core** | `using-epistemic`, `epistemic`, and stage skills. This is the shared method across harnesses. |
+| **Harness bootstrap** | Claude `SessionStart`, Codex manifest, and future adapters load the skill core at the right time. |
+| **Runtime gates** | Invisible enforcement that blocks rule violations automatically where the harness supports hooks. |
+| **Monitor** | OMP-only `/monitor` — navigate the experiment tree, drill into a hypothesis, approve / reject / modify. Arrow keys. |
 | **State** | File-based ledger: `HYPOTHESES.md`, `.epistemic/cost-ledger.jsonl`, `experiments/{id}/`. |
 | **Tools** | HuggingFace dataset metadata, paper search, cross-run lessons. |
 

@@ -2,7 +2,9 @@
   "name": "epistemic",
   "version": "1.0.0",
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "description": "A research-discipline coding agent: pre-register hypotheses, reproduce baselines, run experiments, falsify claims, and ship or kill — with an interactive experiment monitor and methodology gates.",
   "keywords": [
     "epistemic",
@@ -21,6 +23,9 @@
     "bin",
     "src",
     "skills",
+    "hooks",
+    ".claude-plugin",
+    ".codex-plugin",
     ".pi",
     "README.md",
     "GUIDE.md",
@@ -29,11 +34,13 @@
   "scripts": {
     "start": "node bin/epistemic.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts",
+    "test": "tsx --test $(find test -name '*.test.ts' ! -name 'tui-drive.test.ts' -print)",
+    "test:tui:pipe": "tsx --test test/tui-drive.test.ts",
     "test:tui": "bash test/tui-e2e.sh",
     "test:agent-tui": "bash test/agent-tui-validate.sh",
     "test:agent-tui:ux": "bash test/agent-tui-ux.sh",
     "test:snapshot": "bash test/agent-tui-snapshot.sh",
+    "test:claude-skills": "bash tests/claude-code/run-skill-tests.sh",
     "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
@@ -53,5 +60,8 @@
     "themes": [
       "./themes/epistemic.json"
     ]
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }

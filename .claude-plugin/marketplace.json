@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "epistemic-skills",
-      "description": "Research-discipline skills: hypothesis → preregistration → baseline → experiment → statistical rigor → falsification → kill-or-ship. Works standalone in Claude Code; the hard gate enforcement lives in the epistemic pi agent.",
+      "description": "Research-discipline skills: hypothesis → preregistration → baseline → experiment → statistical rigor → falsification → kill-or-ship. Includes a Claude bootstrap hook and prereg Bash gate; the full runtime gates and monitor live in the OMP agent.",
       "source": "./",
       "category": "workflow"
     }
