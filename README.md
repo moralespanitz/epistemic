@@ -167,19 +167,6 @@ Default model: `openrouter/deepseek/deepseek-v4-pro`. If you have OpenAI Codex a
 | **RECOMMIT** | Continue past kill criteria | New cap + override |
 | **SHIP** | All gates pass, falsification clean | Tag and publish |
 
-### Hugging Face Research Stack (optional)
-
-Six HF skills are bundled for ML research workflows. They're optional — the core methodology works without them. Load any with `/skill:<name>` or describe the task; authenticate with `hf auth login` to unlock gated models and datasets.
-
-| Skill | What it unlocks |
-|---|---|
-| `huggingface-papers` | Read any arXiv paper as markdown; structured metadata (authors, linked models, citations) |
-| `hf-cli` | Download/upload models & datasets, manage repos, run HF Jobs |
-| `huggingface-datasets` | Paginate rows, full-text search, filter predicates, get Parquet URLs |
-| `huggingface-community-evals` | Run evals locally with `inspect-ai` or `lighteval` |
-| `huggingface-trackio` | Log metrics + alerts during training, sync real-time dashboard to HF Space |
-| `huggingface-llm-trainer` | Fine-tune with TRL (SFT/DPO/GRPO) on HF Jobs cloud GPUs |
-
 ### Meta
 
 - **using-epistemic** — Bootstrap skill injected at `SessionStart` in research repos (has `HYPOTHESES.md` / `experiments/`). Tells the agent to load the correct stage skill before any empirical work.
@@ -235,6 +222,27 @@ If the skills are well written, the gates never fire — the agent follows the m
 | Baseline staleness | comparing to a >30-day-old baseline |
 
 Overrides go in `OVERRIDES.md` with a mandatory reason.
+
+---
+
+## Tools
+
+Internal tools the agent can call during research workflows.
+
+- **Docker** — isolated container execution for reproducible experiment environments
+- **Modal** — serverless GPU compute for burst training and inference
+- **Web search** — evidence gathering across papers, docs, and repos
+
+**Hugging Face** (optional, requires `hf auth login`)
+
+| Tool | What it does |
+|---|---|
+| `huggingface-papers` | Read any arXiv paper as markdown; structured metadata (authors, linked models, citations) |
+| `hf-cli` | Download/upload models & datasets, manage repos, run HF Jobs |
+| `huggingface-datasets` | Paginate rows, full-text search, filter predicates, get Parquet URLs |
+| `huggingface-community-evals` | Run evals locally with `inspect-ai` or `lighteval` |
+| `huggingface-trackio` | Log metrics + alerts during training, sync real-time dashboard to HF Space |
+| `huggingface-llm-trainer` | Fine-tune with TRL (SFT/DPO/GRPO) on HF Jobs cloud GPUs |
 
 ---
 
