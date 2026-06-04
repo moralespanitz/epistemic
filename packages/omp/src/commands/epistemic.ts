@@ -438,7 +438,7 @@ function registerResearchCommands(api: EpistemicAPI) {
     handler: async (_args, ctx) => {
       const existing = await loadHypotheses(ctx.cwd);
       if (existing.some(e => ["OPEN", "RUNNING"].includes(e.status))) {
-        ctx.ui.notify("Active hypotheses exist. Finish or kill them before starting new research.", "warn");
+        ctx.ui.notify("Active hypotheses exist. Finish or kill them before starting new research.", "warning");
         return;
       }
       ctx.ui.notify("Starting research brainstorm...", "info");
@@ -454,7 +454,7 @@ function registerResearchCommands(api: EpistemicAPI) {
     handler: async (_args, ctx) => {
       const url = process.env.EPISTEMIC_GRAPH_URL;
       if (!url) {
-        ctx.ui.notify("Graph server not running. Start epistemic normally to auto-launch it.", "warn");
+        ctx.ui.notify("Graph server not running. Start epistemic normally to auto-launch it.", "warning");
         return;
       }
       const { exec } = await import("node:child_process");

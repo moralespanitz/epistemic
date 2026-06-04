@@ -2,7 +2,7 @@
 export interface EpistemicContext {
   cwd: string;
   ui: {
-    notify(message: string, level: "info" | "warn" | "error"): void;
+    notify(message: string, level: "info" | "warning" | "error"): void;
     setWidget(key: string, widget: unknown, opts?: { placement?: string }): void;
     setStatus?(key: string, text: string): void;
     setWorkingMessage?(text: string): void;
