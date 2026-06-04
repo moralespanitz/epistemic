@@ -24,6 +24,7 @@ import { playIntro } from "./intro.js";
 import { runMonitorApp } from "../monitor/app.js";
 import { startGraphServer } from "../graph/server.js";
 import { exec } from "node:child_process";
+import { readConfig } from "./config.js";
 
 // Default to OpenAI Codex (ChatGPT Plus/Pro subscription auth). The codex
 // provider is OAuth-only — no env var — so it's matched purely by an
@@ -43,11 +44,14 @@ function openBrowser(url: string): void {
 
 /**
  * Pick a default model whose provider the user can actually authenticate.
- * Prefers Codex, then falls back to any provider with a key in env or in
- * ~/.pi/agent/auth.json, so the agent never boots into a "No API key found"
- * loop. Returns undefined if nothing is authed (let /login).
+ * Priority: ~/.epistemic/config.json > Codex auth > OpenRouter > OpenAI > Anthropic.
+ * Returns undefined if nothing is authed (let /login prompt the user).
  */
 function resolveDefaultModel(): string | undefined {
+  // 1. User's persistent preference wins
+  const saved = readConfig().model;
+  if (saved) return saved;
+
   let authed: Record<string, unknown> = {};
   try {
     const path = `${process.env.HOME}/.pi/agent/auth.json`;
@@ -86,6 +90,12 @@ async function run() {
   if (args[0] === "skills") {
     const { runSkills } = await import("./skills.js");
     await runSkills(args.slice(1));
+    return;
+  }
+
+  if (args[0] === "config") {
+    const { runConfig } = await import("./config.js");
+    await runConfig(args.slice(1));
     return;
   }
 
