@@ -13,7 +13,7 @@ export interface GraphServer {
   eventReader: EventReader;
 }
 
-const ALLOWED_EVENT_TYPES = new Set(["open-hypothesis", "new-research", "dismiss-proposal"]);
+const ALLOWED_EVENT_TYPES = new Set(["open-hypothesis", "new-research", "dismiss-proposal", "fork-node"]);
 const MAX_BODY_BYTES = 64 * 1024;
 
 // Resolve cytoscape from node_modules — navigate from the resolved main entry
@@ -52,6 +52,9 @@ body{background:#0d0a04;color:#f59e0b;font-family:'SF Mono','Fira Code',ui-monos
 #card .costbar>i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b);border-radius:3px}
 #card .open-btn{display:block;width:100%;margin-top:14px;padding:10px;background:#f59e0b;color:#0d0a04;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
 #card .open-btn:hover{background:#fbbf24;transform:translateY(-1px)}
+#card .forkrow{display:flex;gap:8px;margin-top:8px}
+#card .fork-btn{flex:1;padding:8px 6px;background:transparent;color:#c9a25e;border:1px solid #5a4a2a;border-radius:8px;font-family:inherit;font-size:10px;cursor:pointer;transition:.15s}
+#card .fork-btn:hover{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.08)}
 #card .dismiss-btn{display:block;width:100%;margin-top:8px;padding:8px;background:transparent;color:#6b5d40;border:1px solid #2a2010;border-radius:8px;font-family:inherit;font-size:11px;cursor:pointer}
 #card .dismiss-btn:hover{border-color:#ef4444;color:#ef4444}
 #card .x{position:absolute;top:14px;right:16px;color:#6b5d40;cursor:pointer;font-size:14px}
@@ -80,6 +83,10 @@ body{background:#0d0a04;color:#f59e0b;font-family:'SF Mono','Fira Code',ui-monos
   <div class="costbar"><i id="cbar"></i></div>
   <div class="gates" id="cgates"></div>
   <button class="open-btn" onclick="openInTerminal()">Open terminal →</button>
+  <div class="forkrow" id="cforkrow" style="display:none">
+    <button class="fork-btn" onclick="forkNode('hypothesis')">⑂ Sub-hypothesis</button>
+    <button class="fork-btn" onclick="forkNode('ablation')">⊟ Ablation</button>
+  </div>
   <button class="dismiss-btn" id="cdismiss" onclick="dismissProposal()" style="display:none">Dismiss proposal</button>
 </div>
 <div id="empty"><div class="o">○</div><p>No research document yet.</p><p>Type <span style="color:#f59e0b">/research</span> in the terminal</p></div>
@@ -100,6 +107,7 @@ let cy=null, sel=null, lastSig='';
 async function send(ev){try{await fetch('/api/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)})}catch{}}
 function openInTerminal(){if(sel)send({type:'open-hypothesis',id:sel.id});closeCard()}
 function dismissProposal(){if(sel)send({type:'dismiss-proposal',id:sel.id});closeCard()}
+function forkNode(kind){if(sel)send({type:'fork-node',id:sel.id,kind:kind});closeCard()}
 function closeCard(){document.getElementById('card').style.display='none';sel=null}
 
 function showCard(n){
@@ -120,14 +128,20 @@ function showCard(n){
        .map(([lbl,k])=>'<span class="gate '+(g[k]?'on':'')+'">'+(g[k]?'✓':'○')+' '+lbl+'</span>').join('')
     :'<span class="gate">not registered yet</span>';
   document.getElementById('cdismiss').style.display=n.isProposal?'block':'none';
+  // A node that's still in flight can spawn sub-hypotheses / ablations.
+  document.getElementById('cforkrow').style.display=n.forkable?'flex':'none';
   document.getElementById('card').style.display='block';
 }
+
+// Node kind → cytoscape shape. Hypotheses are circles; ablations are
+// hexagons; forks are diamonds; baselines are tags (rounded rectangles).
+const KIND_SHAPE={hypothesis:'ellipse',ablation:'hexagon',fork:'diamond',baseline:'round-tag'};
 
 function buildElements(data){
   const els=[{data:{id:'root',label:data.root.label,kind:'root'}}];
   for(const n of data.nodes){
-    els.push({data:{id:n.id,label:n.id,kind:'hyp',status:n.status,node:n}});
-    els.push({data:{id:'e-'+n.id,source:'root',target:n.id}});
+    els.push({data:{id:n.id,label:n.id,kind:'hyp',shape:KIND_SHAPE[n.kind]||'ellipse',status:n.status,node:n}});
+    els.push({data:{id:'e-'+n.id,source:(n.parent||'root'),target:n.id}});
   }
   return els;
 }
@@ -141,10 +155,13 @@ function nodeStyle(){
       'width':210,'height':54,'padding':'12px'
     }},
     {selector:'node[kind="hyp"]',style:{
-      'shape':'ellipse','width':70,'height':70,'border-width':3,
+      'shape':'data(shape)','width':70,'height':70,'border-width':3,
       'label':'data(label)','color':'#f5ecd8','font-size':13,'font-weight':700,'font-family':"'SF Mono',monospace",
       'text-valign':'center','text-halign':'center','text-outline-color':'#0d0a04','text-outline-width':2
     }},
+    // Ablations and forks render a touch smaller than primary hypotheses.
+    {selector:'node[shape="hexagon"]',style:{'width':56,'height':56,'font-size':11}},
+    {selector:'node[shape="diamond"]',style:{'width':62,'height':62,'font-size':11}},
     // Status only drives border + fill — the ID label stays high-contrast.
     ...Object.entries(COLORS).map(([st,c])=>({
       selector:'node[status="'+st+'"]',
@@ -154,7 +171,7 @@ function nodeStyle(){
     {selector:'node[status="KILLED"]',style:{'opacity':.55}},
     {selector:'node:selected',style:{'border-width':4,'overlay-opacity':0}},
     {selector:'edge',style:{
-      'width':1.5,'line-color':'#33281400','line-color':'#3a2e16','curve-style':'bezier',
+      'width':1.5,'line-color':'#3a2e16','curve-style':'bezier',
       'target-arrow-shape':'none','opacity':.6
     }}
   ];

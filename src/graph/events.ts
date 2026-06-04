@@ -2,15 +2,17 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileExists } from "../state/repo.js";
 
-export type GraphEventType = "open-hypothesis" | "new-research" | "dismiss-proposal";
+export type GraphEventType = "open-hypothesis" | "new-research" | "dismiss-proposal" | "fork-node";
 
 export interface GraphEvent {
   type: GraphEventType;
   id?: string;
+  /** For fork-node: what kind of child to create (hypothesis / ablation / fork). */
+  kind?: string;
   timestamp: number;
 }
 
-const ALLOWED_TYPES = new Set<GraphEventType>(["open-hypothesis", "new-research", "dismiss-proposal"]);
+const ALLOWED_TYPES = new Set<GraphEventType>(["open-hypothesis", "new-research", "dismiss-proposal", "fork-node"]);
 
 export interface EventReader {
   read(): Promise<GraphEvent[]>;

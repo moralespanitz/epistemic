@@ -1,8 +1,15 @@
+/** What a node represents — drives its shape/label in the graph. */
+export type StoryKind = "hypothesis" | "ablation" | "fork" | "baseline";
+
 export interface ResearchStory {
   id: string;
   title: string;
   description: string;
   validationCriteria: string;
+  /** Parent node id (RS-NNN). Absent → child of the research-document root. */
+  parent?: string;
+  /** Node kind. Defaults to "hypothesis". */
+  kind: StoryKind;
 }
 
 export interface ResearchDocument {
@@ -35,8 +42,14 @@ function parseStories(content: string): ResearchStory[] {
 
     const desc = block.match(/\*\*Description\*\*:[^\S\n]*([^\n]+(?:\n(?![-\s]*\*\*)[^\n]+)*)/i)?.[1]?.trim() ?? "";
     const valid = block.match(/\*\*Validation criteria\*\*:[^\S\n]*([\s\S]*?)(?=\n\s*-\s*\*\*|\n###|$)/i)?.[1]?.trim() ?? "";
+    const parent = block.match(/\*\*Parent\*\*:[^\S\n]*(RS-\d+)/i)?.[1]?.trim();
+    const kindRaw = block.match(/\*\*(?:Kind|Type)\*\*:[^\S\n]*(\w+)/i)?.[1]?.toLowerCase();
+    const kind: StoryKind =
+      kindRaw === "ablation" ? "ablation" :
+      kindRaw === "fork"     ? "fork" :
+      kindRaw === "baseline" ? "baseline" : "hypothesis";
 
-    stories.push({ id, title: heading[1].trim(), description: desc, validationCriteria: valid });
+    stories.push({ id, title: heading[1].trim(), description: desc, validationCriteria: valid, parent, kind });
   }
   return stories;
 }

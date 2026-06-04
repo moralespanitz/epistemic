@@ -86,4 +86,70 @@ describe("buildGraphData", () => {
     const data = buildGraphData(RESEARCH_MD, HYPOTHESES_MD, {}, "");
     assert.equal(data.nodes.find(n => n.id === "RS-001")?.stage, 7);
   });
+
+  it("builds branching edges from Parent fields", () => {
+    const branched = `# RD: Branching
+## 10. Research stories
+### 10.1. Root
+- **ID**: RS-001
+- **Description**: base.
+- **Validation criteria**: x.
+### 10.2. Child ablation
+- **ID**: RS-002
+- **Parent**: RS-001
+- **Kind**: ablation
+- **Description**: ablate.
+- **Validation criteria**: y.
+`;
+    const data = buildGraphData(branched, "", {}, "");
+    const rs1 = data.nodes.find(n => n.id === "RS-001")!;
+    const rs2 = data.nodes.find(n => n.id === "RS-002")!;
+    assert.equal(rs1.parent, null);            // root child
+    assert.equal(rs2.parent, "RS-001");        // branches off RS-001
+    assert.equal(rs2.kind, "ablation");
+    // Edge for RS-002 points from its parent, not the root
+    assert.ok(data.edges.some(e => e.source === "RS-001" && e.target === "RS-002"));
+    assert.ok(data.edges.some(e => e.source === "root" && e.target === "RS-001"));
+  });
+
+  it("ignores a Parent that does not exist as a node (attaches to root)", () => {
+    const orphan = `# RD: Orphan
+## 10. Research stories
+### 10.1. Lonely
+- **ID**: RS-001
+- **Parent**: RS-999
+- **Description**: no such parent.
+- **Validation criteria**: x.
+`;
+    const data = buildGraphData(orphan, "", {}, "");
+    assert.equal(data.nodes[0].parent, null);
+    assert.ok(data.edges.some(e => e.source === "root" && e.target === "RS-001"));
+  });
+
+  it("marks shipped and killed nodes as not forkable", () => {
+    const md = `## Hypothesis: RS-001
+- **Claim:** shipped one
+- **Status:** CONFIRMED
+- **Cost cap:** 20
+
+## Hypothesis: RS-002
+- **Claim:** killed one
+- **Status:** KILLED
+- **Cost cap:** 20
+`;
+    const research = `# RD: Fork
+## 10. Research stories
+### 10.1. A
+- **ID**: RS-001
+- **Description**: a.
+- **Validation criteria**: x.
+### 10.2. B
+- **ID**: RS-002
+- **Description**: b.
+- **Validation criteria**: y.
+`;
+    const data = buildGraphData(research, md, {}, "RS-001 shipped");
+    assert.equal(data.nodes.find(n => n.id === "RS-001")?.forkable, false); // shipped
+    assert.equal(data.nodes.find(n => n.id === "RS-002")?.forkable, false); // killed
+  });
 });

@@ -75,4 +75,30 @@ describe("parseResearchDocument", () => {
     assert.equal(stories[0].description, "");
     assert.equal(stories[0].validationCriteria, "Must pass.");
   });
+
+  it("defaults kind to hypothesis and parent to undefined", () => {
+    const { stories } = parseResearchDocument(SAMPLE);
+    assert.equal(stories[0].kind, "hypothesis");
+    assert.equal(stories[0].parent, undefined);
+  });
+
+  it("parses Parent and Kind fields when present", () => {
+    const content = `# RD: Test
+## 10. Research stories
+### 10.1. Root hypothesis
+- **ID**: RS-001
+- **Description**: The base claim.
+- **Validation criteria**: x.
+### 10.2. Ablation of RS-001
+- **ID**: RS-002
+- **Parent**: RS-001
+- **Kind**: ablation
+- **Description**: Remove component.
+- **Validation criteria**: y.
+`;
+    const { stories } = parseResearchDocument(content);
+    assert.equal(stories[1].id, "RS-002");
+    assert.equal(stories[1].parent, "RS-001");
+    assert.equal(stories[1].kind, "ablation");
+  });
 });

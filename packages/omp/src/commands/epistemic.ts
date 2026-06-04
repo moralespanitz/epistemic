@@ -506,6 +506,20 @@ async function handleGraphEvents(ctx: ExtensionContext): Promise<void> {
       await sendTurn(ctx,
         `Continue working on hypothesis ${event.id}: "${entry.claim}". Check current stage and proceed with the epistemic pipeline.`
       );
+    } else if (event.type === "fork-node" && event.id) {
+      const kind = event.kind === "ablation" ? "ablation"
+                 : event.kind === "fork" ? "fork" : "sub-hypothesis";
+      const entries = await loadHypotheses(ctx.cwd);
+      const parent = entries.find(e => e.id === event.id);
+      const parentClaim = parent?.claim ?? event.id;
+      ctx.ui.notify(`Forking a ${kind} from ${event.id}...`, "info");
+      await sendTurn(ctx,
+        `Create a new ${kind} branching from ${event.id} ("${parentClaim}"). ` +
+        `Use the research-question skill to define it as a child node: give it the next ` +
+        `RS-NNN id, set "- **Parent:** ${event.id}" and "- **Kind:** ${event.kind ?? "hypothesis"}", ` +
+        `append it to RESEARCH.md section 10 and seed it in HYPOTHESES.md as OPEN. ` +
+        `It must be falsifiable and test something the parent leaves open.`
+      );
     } else if (event.type === "dismiss-proposal") {
       ctx.ui.notify(`Proposal ${event.id ?? ""} dismissed`, "info");
     }
