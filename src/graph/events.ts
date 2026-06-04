@@ -28,15 +28,17 @@ export function makeEventReader(cwd: string, serverStartTime: number): EventRead
       const content = await readFile(eventsPath, "utf8");
       const lines = content.split("\n").filter(Boolean);
       const newLines = lines.slice(cursor);
-      cursor = lines.length;
+      cursor = Math.max(cursor, lines.length);
 
       return newLines
         .map(l => { try { return JSON.parse(l) as GraphEvent; } catch { return null; } })
         .filter((e): e is GraphEvent =>
           e !== null &&
-          ALLOWED_TYPES.has(e.type as GraphEventType) &&
-          typeof e.timestamp === "number" &&
-          e.timestamp >= serverStartTime
+          typeof e === "object" &&
+          !Array.isArray(e) &&
+          ALLOWED_TYPES.has((e as any).type as GraphEventType) &&
+          typeof (e as any).timestamp === "number" &&
+          (e as any).timestamp >= serverStartTime
         );
     }
   };

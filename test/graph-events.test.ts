@@ -51,4 +51,51 @@ describe("readGraphEvents", () => {
     const events = await reader.read();
     assert.deepEqual(events, []);
   });
+
+  it("returns only new events after file grows (cursor advances correctly)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ep-ev4-"));
+    await mkdir(join(dir, ".epistemic"), { recursive: true });
+    const startTime = Date.now() - 1000;
+    const event1 = JSON.stringify({ type: "new-research", timestamp: startTime + 100 });
+    const eventsFile = join(dir, ".epistemic/graph-events.jsonl");
+    await writeFile(eventsFile, `${event1}\n`);
+
+    const reader = makeEventReader(dir, startTime);
+    const first = await reader.read();
+    assert.equal(first.length, 1);
+
+    // Append a new event
+    const { appendFile } = await import("node:fs/promises");
+    const event2 = JSON.stringify({ type: "open-hypothesis", id: "RS-001", timestamp: startTime + 200 });
+    await appendFile(eventsFile, `${event2}\n`);
+
+    const second = await reader.read();
+    assert.equal(second.length, 1);
+    assert.equal(second[0].type, "open-hypothesis");
+  });
+
+  it("skips malformed JSON lines and returns valid events", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ep-ev5-"));
+    await mkdir(join(dir, ".epistemic"), { recursive: true });
+    const startTime = Date.now() - 1000;
+    const good = JSON.stringify({ type: "new-research", timestamp: startTime + 100 });
+    await writeFile(join(dir, ".epistemic/graph-events.jsonl"), `{bad json\n${good}\n`);
+
+    const reader = makeEventReader(dir, startTime);
+    const events = await reader.read();
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, "new-research");
+  });
+
+  it("includes events where timestamp exactly equals serverStartTime", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ep-ev6-"));
+    await mkdir(join(dir, ".epistemic"), { recursive: true });
+    const startTime = 1000000;
+    const event = JSON.stringify({ type: "new-research", timestamp: startTime });
+    await writeFile(join(dir, ".epistemic/graph-events.jsonl"), `${event}\n`);
+
+    const reader = makeEventReader(dir, startTime);
+    const events = await reader.read();
+    assert.equal(events.length, 1);
+  });
 });
