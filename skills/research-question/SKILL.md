@@ -493,15 +493,38 @@ When all slots are filled and confirmed by the user:
 2. Write it to `RESEARCH.md` in the repo root (overwrite if it already exists)
 3. For each Research Story in section 10 (RS-001, RS-002, …), append an entry to `HYPOTHESES.md`:
 
-```
-## Hypothesis: RS-NNN
-- **Claim**: <story title as a testable claim>
-- **Status**: OPEN
-- **Cost Cap**: 50
-- **N**: 30
-- **Compute Target**: local
-- **Timestamp**: <current unix milliseconds>
-```
+   **Before appending:** if `HYPOTHESES.md` does not yet exist, create it with the following header (including the trailing blank line):
+
+   ```
+   # Hypotheses
+
+   Registered hypotheses for this research project.
+
+   ```
+
+   Then append each entry. Get the current timestamp by running:
+   ```
+   node -e "console.log(Date.now())"
+   ```
+   This produces a 13-digit Unix millisecond integer (e.g. `1748995200000`). Use that value for the `Timestamp` field.
+
+   Set `Compute target` to `local`, `docker`, or `modal` based on the compute requirements described in the Research Story.
+
+   Each entry must use this exact format (field names match `hypothesisToMarkdown` exactly):
+
+   ```
+   ## Hypothesis: RS-NNN
+   - **Status:** OPEN
+   - **Claim:** <story title as a testable claim>
+   - **Falsifier:** <the observation that would falsify this claim>
+   - **Best case conclusion:** <one sentence on what a positive result would let you conclude>
+   - **N:** 30
+   - **Judge:** <judge model or script ref, e.g. gpt-4o or scripts/judge.py>
+   - **Baseline:** <baseline description, e.g. zero-shot GPT-4o>
+   - **Cost cap:** 50
+   - **Compute target:** local
+   - **Timestamp:** 1748995200000
+   ```
 
 4. Notify the user: "Research Document written to RESEARCH.md. Open the graph to see your hypotheses — the graph auto-refreshes within 2 seconds."
 
