@@ -121,6 +121,27 @@ function handleMonitorKey(ctx: any, data: string): boolean {
   return true;
 }
 
+/** Handle S/K/P/R kill-or-ship shortcuts when at decision stage. */
+async function handleKillShipKey(data: string, ctx: any): Promise<void> {
+  const entries = await loadHypotheses(ctx.cwd);
+  const active = getActiveHypothesis(entries);
+  if (!active) return;
+
+  const isAtDecision = active.status === "CONFIRMED" || active.status === "FALSIFIED";
+  if (!isAtDecision) return;
+
+  const key = data.trim().toLowerCase();
+  if (!["s", "k", "p", "r"].includes(key)) return;
+
+  const actions: Record<string, string> = { s: "SHIP", k: "KILL", p: "PIVOT", r: "REFINE" };
+  const decision = actions[key]!;
+
+  ctx.ui.notify?.(`Decision: ${decision} — processing...`, "info");
+  await (ctx as any).sendUserMessage?.(
+    `Execute the kill-or-ship skill with decision: ${decision} for hypothesis ${active.id}. Follow the skill instructions exactly.`
+  );
+}
+
 // Register once PER pi INSTANCE — not process-globally. pi rebuilds its command
 // registry on reload / reconnect / session switch and re-invokes this factory
 // with a FRESH instance whose command map is empty; a process-wide flag would
@@ -163,6 +184,11 @@ export default async function (pi: ExtensionAPI) {
         ctx.ui.onTerminalInput?.((data: string) => {
           if (handleMonitorKey(ctx, data)) return { consume: true };
           return undefined;
+        });
+        // Handle S/K/P/R kill-or-ship shortcuts at decision stage
+        ctx.ui.onTerminalInput?.((data: string) => {
+          handleKillShipKey(data, ctx).catch(() => {});
+          return undefined; // don't consume the input — let normal input through
         });
         navRegisteredCtxs.add(ctx as object);
       }
