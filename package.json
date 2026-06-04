@@ -41,6 +41,10 @@
     "test:agent-tui:ux": "bash test/agent-tui-ux.sh",
     "test:snapshot": "bash test/agent-tui-snapshot.sh",
     "test:claude-skills": "bash tests/claude-code/run-skill-tests.sh",
+    "test:integration:hook": "node tests/integration/hook-session-start.test.mjs",
+    "test:integration:graph": "npx tsx --test tests/integration/graph-server.integration.test.ts",
+    "test:integration:tui": "bash tests/integration/agent-tui-epistemic.sh",
+    "test:integration": "npm run test:integration:hook && npm run test:integration:graph",
     "verify": "npm run typecheck && npm test"
   },
   "dependencies": {

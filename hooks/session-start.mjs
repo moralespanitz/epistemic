@@ -31,12 +31,17 @@ process.stdin.on("end", async () => {
   let cwd = process.cwd();
   try { cwd = JSON.parse(input || "{}").cwd || cwd; } catch { /* use process.cwd */ }
 
-  const isResearch =
+  // Full research repo: has existing research artifacts.
+  const isActiveResearch =
     existsSync(join(cwd, "HYPOTHESES.md")) ||
     existsSync(join(cwd, "experiments")) ||
-    existsSync(join(cwd, "RESULTS.md"));
+    existsSync(join(cwd, "RESULTS.md")) ||
+    existsSync(join(cwd, "RESEARCH.md"));
 
-  if (!isResearch) { process.exit(0); } // silent elsewhere
+  // New research repo: has a git repo but no research files yet — bootstrap only.
+  const isGitRepo = existsSync(join(cwd, ".git"));
+
+  if (!isActiveResearch && !isGitRepo) { process.exit(0); } // not a repo at all — stay silent
 
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const pluginRoot = join(scriptDir, "..");
@@ -45,6 +50,29 @@ process.stdin.on("end", async () => {
     usingEpistemic = await readFile(join(pluginRoot, "skills", "using-epistemic", "SKILL.md"), "utf8");
   } catch {
     usingEpistemic = "Error reading using-epistemic skill. Invoke the `epistemic` skill before empirical work.";
+  }
+
+  // New repo: inject a lightweight bootstrap so the agent knows epistemic is
+  // available and routes research questions to /new instead of answering directly.
+  if (!isActiveResearch) {
+    const bootstrap = [
+      "Ξ Epistemic is available in this repo (no research document yet).",
+      "",
+      "IMPORTANT: If the user asks a research question — anything involving",
+      "\"does X improve Y\", \"compare X vs Y\", \"is X better than\", benchmarks,",
+      "evals, or empirical claims — DO NOT answer it directly.",
+      "Instead, say:",
+      "  \"I can help you run a rigorous experiment on that. Type `/new` to start",
+      "   a research document, or click '+ New Research' in the browser graph.\"",
+      "",
+      "Then wait. The epistemic pipeline (pre-register → baseline → experiment →",
+      "falsify → kill-or-ship) will guide the work. Do not skip it.",
+    ].join("\n");
+
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: bootstrap },
+    }));
+    process.exit(0);
   }
 
   // Check whether the hf CLI is authenticated.
