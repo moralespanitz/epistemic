@@ -97,11 +97,16 @@ epistemic is available via the [official Claude plugin marketplace](https://clau
 ```bash
 git clone git@github.com:moralespanitz/epistemic.git && cd epistemic
 
+# Core methodology skills
 for s in using-epistemic epistemic research-question preregistration baseline-reproduction \
   experiment-execution statistical-rigor falsification-review surprise-triage \
-  kill-or-ship verification-before-publication \
-  huggingface-papers hf-cli huggingface-datasets huggingface-community-evals \
-  huggingface-trackio huggingface-llm-trainer; do
+  kill-or-ship verification-before-publication; do
+  ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
+done
+
+# Optional: Hugging Face research stack
+for s in huggingface-papers hf-cli huggingface-datasets \
+  huggingface-community-evals huggingface-trackio huggingface-llm-trainer; do
   ln -sfn "$PWD/skills/$s" "$HOME/.claude/skills/$s"
 done
 ```
@@ -134,13 +139,7 @@ npm install
 npm link            # makes `epistemic` available everywhere
 ```
 
-Authenticate the Hugging Face CLI to unlock gated models and datasets:
-
-```bash
-hf auth login       # paste a token from huggingface.co/settings/tokens
-```
-
-Default model is `openai-codex/gpt-5.5` with a ChatGPT Plus/Pro subscription. Fallback: Codex → OpenRouter → OpenAI → Anthropic.
+Default model: `openrouter/deepseek/deepseek-v4-pro`. If you have OpenAI Codex authed, it uses that instead. If nothing is authed, pi prompts `/login`.
 
 ---
 
@@ -168,9 +167,9 @@ Default model is `openai-codex/gpt-5.5` with a ChatGPT Plus/Pro subscription. Fa
 | **RECOMMIT** | Continue past kill criteria | New cap + override |
 | **SHIP** | All gates pass, falsification clean | Tag and publish |
 
-### Hugging Face Research Stack
+### Hugging Face Research Stack (optional)
 
-Six HF skills are bundled and auto-discovered at startup. Load any with `/skill:<name>` or just describe the task:
+Six HF skills are bundled for ML research workflows. They're optional — the core methodology works without them. Load any with `/skill:<name>` or describe the task; authenticate with `hf auth login` to unlock gated models and datasets.
 
 | Skill | What it unlocks |
 |---|---|
@@ -180,8 +179,6 @@ Six HF skills are bundled and auto-discovered at startup. Load any with `/skill:
 | `huggingface-community-evals` | Run evals locally with `inspect-ai` or `lighteval` |
 | `huggingface-trackio` | Log metrics + alerts during training, sync real-time dashboard to HF Space |
 | `huggingface-llm-trainer` | Fine-tune with TRL (SFT/DPO/GRPO) on HF Jobs cloud GPUs |
-
-The session-start hook announces auth status and available skills at the top of every research session, so the agent knows what tools exist without being told.
 
 ### Meta
 
