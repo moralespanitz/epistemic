@@ -433,7 +433,7 @@ function registerResearchCommands(api: EpistemicAPI) {
   });
 
   // /new — start a new research document with Socratic brainstorming
-  api.registerCommand("new", {
+  api.registerCommand("research", {
     description: "Start a new research document (Socratic brainstorm)",
     handler: async (_args, ctx) => {
       const existing = await loadHypotheses(ctx.cwd);

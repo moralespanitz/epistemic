@@ -79,7 +79,7 @@ body{background:#0f0a00;color:#f59e0b;font-family:'SF Mono','Fira Code',monospac
   <button class="open-btn" onclick="openInTerminal()">Open in terminal →</button>
   <button class="dismiss-btn" id="cdismiss" onclick="dismissProposal()" style="display:none">Dismiss proposal</button>
 </div>
-<div id="empty"><div style="font-size:32px;color:#333">○</div><p>No research document yet.</p><p>Type <span style="color:#f59e0b">/new</span> in the terminal.</p></div>
+<div id="empty"><div style="font-size:32px;color:#333">○</div><p>No research document yet.</p><p>Type <span style="color:#f59e0b">/research</span> in the terminal.</p></div>
 <button id="new-btn" onclick="send({type:'new-research'})">+ New Research</button>
 <script>
 let sel=null;

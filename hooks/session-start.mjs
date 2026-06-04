@@ -53,7 +53,7 @@ process.stdin.on("end", async () => {
   }
 
   // New repo: inject a lightweight bootstrap so the agent knows epistemic is
-  // available and routes research questions to /new instead of answering directly.
+  // available and routes research questions to /research instead of answering directly.
   if (!isActiveResearch) {
     const bootstrap = [
       "Ξ Epistemic is available in this repo (no research document yet).",
@@ -62,7 +62,7 @@ process.stdin.on("end", async () => {
       "\"does X improve Y\", \"compare X vs Y\", \"is X better than\", benchmarks,",
       "evals, or empirical claims — DO NOT answer it directly.",
       "Instead, say:",
-      "  \"I can help you run a rigorous experiment on that. Type `/new` to start",
+      "  \"I can help you run a rigorous experiment on that. Type `/research` to start",
       "   a research document, or click '+ New Research' in the browser graph.\"",
       "",
       "Then wait. The epistemic pipeline (pre-register → baseline → experiment →",

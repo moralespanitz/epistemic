@@ -85,7 +85,7 @@ EMPTYDIR=$(mktemp -d)
 git -C "$EMPTYDIR" init -q
 EMPTY_OUT=$(echo "{\"cwd\":\"$EMPTYDIR\"}" | node "$ROOT/hooks/session-start.mjs" 2>/dev/null)
 EMPTY_CTX=$(echo "$EMPTY_OUT" | node -e "process.stdin|s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{console.log(JSON.parse(s).hookSpecificOutput.additionalContext)}catch{}})" 2>/dev/null || echo "")
-chk     "/new"                "$EMPTY_CTX" "bootstrap mentions /new"
+chk     "/research"           "$EMPTY_CTX" "bootstrap mentions /research"
 chk     "do not answer"       "$EMPTY_CTX" "bootstrap says do not answer directly"
 chk_not "huggingface-papers"  "$EMPTY_CTX" "bootstrap does not include full HF stack"
 rm -rf "$EMPTYDIR"

@@ -52,7 +52,7 @@ console.log("\nTest 2: empty git repo → lightweight bootstrap");
   check("produces output",            out.length > 0);
   const parsed = JSON.parse(out);
   const ctx = parsed.hookSpecificOutput.additionalContext;
-  check("mentions /new",              ctx.includes("/new"));
+  check("mentions /research",         ctx.includes("/research"));
   check("says do not answer directly",ctx.toLowerCase().includes("do not answer"));
   check("does not include full skill",!ctx.includes("## The Rule"));  // full using-epistemic not injected
   await rm(dir, { recursive: true });
